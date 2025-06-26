@@ -13,8 +13,6 @@ The CoinfectionSimulator package includes:
 - ✅ Demographic processes (birth, death, aging)
 - ✅ Virtual ecologist sampling with detection errors
 - ✅ Interaction matrix generation utilities
-- ✅ Comprehensive test suite (47/47 tests passing)
-- ✅ Full documentation and examples
 
 ## Features
 
