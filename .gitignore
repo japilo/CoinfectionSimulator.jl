@@ -1,0 +1,50 @@
+# Julia files
+*.jl.*.cov
+*.jl.cov
+*.jl.mem
+/Manifest.toml
+
+# Build and documentation files
+/docs/build/
+/docs/site/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Editor files
+*~
+.#*
+\#*#
+.*.swp
+.*.swo
+
+# IDE files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+
+# Julia package manager
+/dev/
+
+# LocalPreferences.jl
+LocalPreferences.toml
+
+# Jupyter Notebook files
+.ipynb_checkpoints
+
+# Python files (if any)
+__pycache__/
+*.py[cod]
+*$py.class

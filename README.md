@@ -1,10 +1,11 @@
 # CoinfectionSimulator.jl
 
+[![CI](https://github.com/japilo/CoinfectionSimulator.jl/workflows/CI/badge.svg)](https://github.com/japilo/CoinfectionSimulator.jl/actions)
+[![codecov](https://codecov.io/gh/japilo/CoinfectionSimulator.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/japilo/CoinfectionSimulator.jl)
+[![](https://img.shields.io/badge/docs-stable-blue.svg)](https://japilo.github.io/CoinfectionSimulator.jl/stable)
+[![](https://img.shields.io/badge/docs-dev-blue.svg)](https://japilo.github.io/CoinfectionSimulator.jl/dev)
+
 A Julia package for simulating multi-strain coinfection dynamics in host populations with imperfect ecological sampling.
-
-## Status
-
-✅ **Package Complete and Functional** - All tests passing!
 
 The CoinfectionSimulator package includes:
 - ✅ Core simulation engine with SI/SIR/SEIR/SEIRS disease models
