@@ -2,6 +2,8 @@
 Data preparation utilities for coinfection simulation experiments.
 """
 
+using LinearAlgebra
+
 """
     prep_interaction_matrix(; df::DataFrame) -> Vector{Matrix{Float64}}
 
