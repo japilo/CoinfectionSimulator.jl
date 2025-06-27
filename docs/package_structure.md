@@ -116,8 +116,6 @@ julia --project=test/test_simulator.jl
 See `examples/basic_example.jl` for a complete working example demonstrating:
 - Population setup
 - Multi-strain simulation
-- Result analysis
-- Virtual ecologist sampling
 - Visualization
 
 ## Dependencies

@@ -123,42 +123,4 @@ println("Final population size: $(total_pop[end])")
 println("Peak infections - Strain 1: $(maximum(infected_1)), Strain 2: $(maximum(infected_2))")
 println("Final recovered - Strain 1: $(recovered_1[end]), Strain 2: $(recovered_2[end])")
 
-## Virtual Ecologist Sampling
-println("\nSimulating virtual ecologist sampling...")
-
-# Sample with different error rates
-detections_perfect = virtual_ecologist_sample(
-    virtual_population=populations,
-    proportion_sampled=0.3,
-    false_positive_rate=0.0,
-    false_negative_rate=0.0
-)
-
-detections_imperfect = virtual_ecologist_sample(
-    virtual_population=populations,
-    proportion_sampled=0.3,
-    false_positive_rate=0.05,
-    false_negative_rate=0.15
-)
-
-# Compare detection patterns
-detected_perfect_1 = sum(detections_perfect[:, 1])
-detected_perfect_2 = sum(detections_perfect[:, 2])
-detected_imperfect_1 = sum(detections_imperfect[:, 1])
-detected_imperfect_2 = sum(detections_imperfect[:, 2])
-
-println("Detection results:")
-println("Perfect sampling - Strain 1: $detected_perfect_1/$n_timesteps, Strain 2: $detected_perfect_2/$n_timesteps")
-println("Imperfect sampling - Strain 1: $detected_imperfect_1/$n_timesteps, Strain 2: $detected_imperfect_2/$n_timesteps")
-
-# Plot detection comparison
-p4 = heatmap([detections_perfect detections_imperfect], 
-            title="Strain Detection Patterns",
-            xlabel="Strain (1-2: Perfect, 3-4: Imperfect)",
-            ylabel="Time Step",
-            color=:blues)
-
-plot(p4, size=(400, 600))
-savefig("detection_patterns.png")
-
-println("\nExample completed! Check 'coinfection_dynamics.png' and 'detection_patterns.png' for visualizations.")
+println("\nExample completed! Check 'coinfection_dynamics.png' for visualizations.")

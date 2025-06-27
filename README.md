@@ -122,14 +122,6 @@ Generates interaction matrices for simulation experiments.
 
 Each strain can use a different disease model within the same simulation.
 
-## Examples
-
-See the `examples/` directory for detailed usage examples:
-- Basic single-strain simulation
-- Multi-strain coinfection with competition
-- Parameter sensitivity analysis
-- Virtual ecologist sampling scenarios
-
 ## Testing
 
 ```julia
