@@ -8,7 +8,7 @@ Utility functions for disease state handling in the coinfection simulator.
 Handle SI (Susceptible-Infected) disease dynamics for a single strain.
 """
 function handle_si_disease(
-	current_pop::Vector{Matrix{Bool}},
+	current_pop::Vector{<:AbstractMatrix{Bool}},
 	alive::Vector{Bool},
 	strain::Int,
 	transmission::Float64,
@@ -30,7 +30,7 @@ end
 Handle SIR (Susceptible-Infected-Recovered) disease dynamics for a single strain.
 """
 function handle_sir_disease(
-	current_pop::Vector{Matrix{Bool}},
+	current_pop::Vector{<:AbstractMatrix{Bool}},
 	alive::Vector{Bool},
 	strain::Int,
 	transmission::Float64,
@@ -56,7 +56,7 @@ end
 Handle SEIR (Susceptible-Exposed-Infected-Recovered) disease dynamics for a single strain.
 """
 function handle_seir_disease(
-	current_pop::Vector{Matrix{Bool}},
+	current_pop::Vector{<:AbstractMatrix{Bool}},
 	alive::Vector{Bool},
 	strain::Int,
 	transmission::Float64,
@@ -86,7 +86,7 @@ end
 Handle SEIRS (Susceptible-Exposed-Infected-Recovered-Susceptible) disease dynamics for a single strain.
 """
 function handle_seirs_disease(
-	current_pop::Vector{Matrix{Bool}},
+	current_pop::Vector{<:AbstractMatrix{Bool}},
 	alive::Vector{Bool},
 	strain::Int,
 	transmission::Float64,
@@ -112,7 +112,7 @@ end
 Handle the infection process for susceptible individuals.
 """
 function handle_infection(
-	current_pop::Vector{Matrix{Bool}},
+	current_pop::Vector{<:AbstractMatrix{Bool}},
 	alive::Vector{Bool},
 	strain::Int,
 	transmission::Float64,
@@ -143,7 +143,7 @@ end
 Handle the exposure process for susceptible individuals in SEIR models.
 """
 function handle_exposure(
-	current_pop::Vector{Matrix{Bool}},
+	current_pop::Vector{<:AbstractMatrix{Bool}},
 	alive::Vector{Bool},
 	strain::Int,
 	transmission::Float64,
@@ -174,7 +174,7 @@ end
 Handle the transition from exposed to infected state.
 """
 function handle_exposed_infection(
-	current_pop::Vector{Matrix{Bool}},
+	current_pop::Vector{<:AbstractMatrix{Bool}},
 	alive::Vector{Bool},
 	strain::Int,
 	latency::Int,
@@ -201,7 +201,7 @@ end
 Handle recovery from infected to recovered state.
 """
 function handle_recovery(
-	current_pop::Vector{Matrix{Bool}},
+	current_pop::Vector{<:AbstractMatrix{Bool}},
 	alive::Vector{Bool},
 	strain::Int,
 	recovery::Float64,
@@ -227,7 +227,7 @@ end
 Handle loss of immunity (transition from recovered to susceptible).
 """
 function handle_immunity_loss(
-	current_pop::Vector{Matrix{Bool}},
+	current_pop::Vector{<:AbstractMatrix{Bool}},
 	alive::Vector{Bool},
 	strain::Int,
 	immunity_loss::Float64,
@@ -253,7 +253,7 @@ end
 Handle mortality of infected individuals.
 """
 function handle_infected_death(
-	current_pop::Vector{Matrix{Bool}},
+	current_pop::Vector{<:AbstractMatrix{Bool}},
 	strain::Int,
 	base_mortality::Float64,
 	disease_mortality::Float64,

@@ -4,7 +4,7 @@ Coinfection simulator module - handles the main simulation logic for multi-strai
 
 """
   coinfection_simulator(;
-	initial_pop::Vector{Matrix{Bool}},
+	initial_pop::Vector{<:AbstractMatrix{Bool}},
 	ages::Vector{Int},
 	interactions::Matrix{Float64},
 	disease_type::Vector{String},
@@ -18,14 +18,15 @@ Coinfection simulator module - handles the main simulation logic for multi-strai
 	latency::Union{Vector{Int}, Nothing} = nothing,
 	recovery::Union{Vector{Float64}, Nothing} = nothing,
 	immunity_loss::Union{Vector{Float64}, Nothing} = nothing
-  ) -> Tuple{Vector{Vector{Matrix{Bool}}}, Vector{Vector{Int}}}
+  ) -> Tuple{Vector{Vector{<:AbstractMatrix{Bool}}}, Vector{Vector{Int}}}
 
 Simulates multiple pathogen strains spreading through a host population with possible coinfection dynamics.
 
 # Arguments
-- `initial_pop::Vector{Matrix{Bool}}`: Vector of matrices representing the initial population. 
+- `initial_pop::Vector{<:AbstractMatrix{Bool}}`: Vector of matrices representing the initial population. 
   Each matrix represents an individual, with rows corresponding to strains and columns 
   representing disease states [S,E,I,R] (Susceptible, Exposed, Infected, Recovered).
+  Can be either Matrix{Bool} or BitMatrix.
 - `ages::Vector{Int}`: Ages of each individual in the initial population.
 - `interactions::Matrix{Float64}`: Matrix of interaction factors between strains. Values > 1 indicate 
   synergistic interactions, values < 1 indicate antagonistic interactions.
@@ -60,7 +61,7 @@ Each individual is represented by an n×4 matrix where n is the number of strain
 - Column 4: Recovered state (true if recovered, for SIR/SEIR/SEIRS models)
 """
 function coinfection_simulator(;
-	initial_pop::Vector{Matrix{Bool}},
+	initial_pop::Vector{<:AbstractMatrix{Bool}},
 	ages::Vector{Int},
 	interactions::Matrix{Float64},
 	disease_type::Vector{String},
@@ -131,7 +132,7 @@ function coinfection_simulator(;
 	end
 
 	# Initialize results
-	result_pop = Vector{Vector{Matrix{Bool}}}(undef, time_steps)
+	result_pop = Vector{Vector{eltype(initial_pop)}}(undef, time_steps)
 	result_pop[1] = copy.(initial_pop)
 	result_ages = Vector{Vector{Int}}(undef, time_steps)
 	result_ages[1] = copy(ages)
@@ -239,8 +240,8 @@ Core infection function that determines which susceptible individuals become inf
 based on transmission probability and strain interactions.
 """
 function infect(
-	susceptibles::Vector{Matrix{Bool}},
-	infecteds::Vector{Matrix{Bool}},
+	susceptibles::Vector{<:AbstractMatrix{Bool}},
+	infecteds::Vector{<:AbstractMatrix{Bool}},
 	interactions::Vector{Float64},
 	beta::Float64,
 	strain::Int,
@@ -249,12 +250,12 @@ function infect(
 	strain_matrix = map(m -> sum.(eachrow(m[:, [2, 3]])), susceptibles)
 	strain_matrix = vcat(strain_matrix'...)
 
-	indiv = [strain_matrix[i, :] for i in 1:size(strain_matrix, 1)]
+	indiv = [strain_matrix[i, :] for i in axes(strain_matrix)[1]]
 	total_strains = sum.(indiv)
 
 	# Infect individuals
 	indiv_new = Vector{Int}(undef, length(indiv))
-	for i in 1:length(indiv)
+	for i in eachindex(indiv)
 		indiv_current = indiv[i]
 		int_indiv = interactions .* indiv_current
 

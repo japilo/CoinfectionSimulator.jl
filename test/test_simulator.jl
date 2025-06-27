@@ -15,7 +15,7 @@
             age_maturity=1
         )
         
-        # Test basic valid input
+        # Test Matrix{Bool} input
         pop = [Matrix{Bool}([true false false false; true false false false]) for _ in 1:10]
         pop[1][1, 1] = false
         pop[1][1, 3] = true
@@ -36,6 +36,82 @@
         @test length(result) == 2  # Returns tuple of (populations, ages)
         @test length(result[1]) == 5  # 5 time steps
         @test length(result[2]) == 5  # 5 time steps
+
+        # Test basic valid input with BitMatrix
+        pop_bit = [BitMatrix([true false false false; true false false false]) for _ in 1:10]
+        pop_bit[1][1, 1] = false
+        pop_bit[1][1, 3] = true
+        
+        result_bit = coinfection_simulator(
+            initial_pop=pop_bit,
+            ages=ones(Int, 10),
+            interactions=[1.0 0.9; 0.9 1.0],
+            disease_type=["si", "si"],
+            base_mortality=0.0,
+            disease_mortality=[0.0, 0.0],
+            fecundity=0.0,
+            transmission=[0.5, 0.5],
+            time_steps=5,
+            age_maturity=1
+        )
+        
+        @test length(result_bit) == 2  # Returns tuple of (populations, ages)
+        @test length(result_bit[1]) == 5  # 5 time steps
+        @test length(result_bit[2]) == 5  # 5 time steps
+    end
+
+    @testset "BitMatrix compatibility tests" begin
+        Random.seed!(789)
+        
+        # Test that BitMatrix and Matrix{Bool} produce equivalent results
+        pop_bool = [Matrix{Bool}([true false false false; true false false false]) for _ in 1:20]
+        pop_bool[1][1, 1] = false
+        pop_bool[1][1, 3] = true
+        
+        pop_bit = [BitMatrix([true false false false; true false false false]) for _ in 1:20]
+        pop_bit[1][1, 1] = false
+        pop_bit[1][1, 3] = true
+        
+        # Run simulation with identical parameters
+        Random.seed!(123)
+        result_bool = coinfection_simulator(
+            initial_pop=pop_bool,
+            ages=ones(Int, 20),
+            interactions=[1.0 0.8; 0.8 1.0],
+            disease_type=["si", "si"],
+            base_mortality=0.0,
+            disease_mortality=[0.0, 0.0],
+            fecundity=0.0,
+            transmission=[0.3, 0.3],
+            time_steps=5,
+            age_maturity=1
+        )
+        
+        Random.seed!(123)
+        result_bit = coinfection_simulator(
+            initial_pop=pop_bit,
+            ages=ones(Int, 20),
+            interactions=[1.0 0.8; 0.8 1.0],
+            disease_type=["si", "si"],
+            base_mortality=0.0,
+            disease_mortality=[0.0, 0.0],
+            fecundity=0.0,
+            transmission=[0.3, 0.3],
+            time_steps=5,
+            age_maturity=1
+        )
+        
+        # Results should be equivalent
+        @test length(result_bool[1]) == length(result_bit[1])
+        @test result_bool[2] == result_bit[2]  # Ages should be identical
+        
+        # Check that population states are equivalent
+        for t in 1:length(result_bool[1])
+            @test length(result_bool[1][t]) == length(result_bit[1][t])
+            for i in 1:length(result_bool[1][t])
+                @test Matrix{Bool}(result_bool[1][t][i]) == Matrix{Bool}(result_bit[1][t][i])
+            end
+        end
     end
 
     @testset "Disease model validation" begin
