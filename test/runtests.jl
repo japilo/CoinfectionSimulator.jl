@@ -18,4 +18,5 @@ Random.seed!(123)
     include("test_simulator.jl")
     include("test_sampling.jl")
     include("test_data_prep.jl")
+    include("test_utils.jl")
 end
