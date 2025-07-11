@@ -13,11 +13,11 @@ using CoinfectionSimulator
             priority_effects = [true],
             strains = [3]
         )
-        @test_throws ErrorException prep_interaction_matrix(df=df_missing)
+        @test_throws ErrorException prep_interaction_matrix(df_missing)
         
         # Test missing all required columns
         df_empty = DataFrame()
-        @test_throws ErrorException prep_interaction_matrix(df=df_empty)
+        @test_throws ErrorException prep_interaction_matrix(df_empty)
     end
     
     @testset "Invalid strains count" begin
@@ -27,7 +27,7 @@ using CoinfectionSimulator
             priority_effects = [true],
             strains = [0]
         )
-        @test_throws ErrorException prep_interaction_matrix(df=df_invalid)
+        @test_throws ErrorException prep_interaction_matrix(df_invalid)
         
         df_negative = DataFrame(
             interaction_strength = [0.1],
@@ -35,7 +35,7 @@ using CoinfectionSimulator
             priority_effects = [true],
             strains = [-1]
         )
-        @test_throws ErrorException prep_interaction_matrix(df=df_negative)
+        @test_throws ErrorException prep_interaction_matrix(df_negative)
     end
     
     @testset "Valid input - basic functionality" begin
@@ -47,7 +47,7 @@ using CoinfectionSimulator
             strains = [2, 3]
         )
         
-        result = prep_interaction_matrix(df=df)
+        result = prep_interaction_matrix(df)
         
         @test length(result) == 2
         @test size(result[1]) == (2, 2)
@@ -64,7 +64,7 @@ using CoinfectionSimulator
             strains = [3]
         )
         
-        result = prep_interaction_matrix(df=df)
+        result = prep_interaction_matrix(df)
         matrix = result[1]
         
         # Diagonal should be 1.0
@@ -84,7 +84,7 @@ using CoinfectionSimulator
             strains = [3]
         )
         
-        result = prep_interaction_matrix(df=df)
+        result = prep_interaction_matrix(df)
         matrix = result[1]
         
         # Diagonal should be 1.0
@@ -102,7 +102,7 @@ using CoinfectionSimulator
             strains = [1]
         )
         
-        result = prep_interaction_matrix(df=df)
+        result = prep_interaction_matrix(df)
         
         @test size(result[1]) == (1, 1)
         @test result[1][1,1] == 1.0
@@ -117,7 +117,7 @@ using CoinfectionSimulator
             strains = [2, 3, 4]
         )
         
-        result = prep_interaction_matrix(df=df)
+        result = prep_interaction_matrix(df)
         
         @test length(result) == 3
         @test size(result[1]) == (2, 2)
@@ -253,7 +253,7 @@ using CoinfectionSimulator
                 priority_effects = [false],  # false = symmetric
                 strains = [3]
             )
-            df_result = prep_interaction_matrix(df=df)
+            df_result = prep_interaction_matrix(df)
             df_matrix = df_result[1]
             
             # Results should be identical

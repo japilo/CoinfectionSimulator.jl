@@ -41,7 +41,7 @@ df = DataFrame(
 )
 
 # Generate interaction matrices
-matrices = prep_interaction_matrix(df=df)
+matrices = prep_interaction_matrix(df)
 ```
 """
 function prep_interaction_matrix(df::DataFrame)
