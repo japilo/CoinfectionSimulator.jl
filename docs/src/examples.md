@@ -89,7 +89,7 @@ df = DataFrame(
 )
 
 # Generate interaction matrices
-matrices = prep_interaction_matrix(df=df)
+matrices = prep_interaction_matrix(df)
 
 for (i, matrix) in enumerate(matrices)
     println("Matrix $i:")
