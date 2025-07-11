@@ -135,7 +135,10 @@ function prep_interaction_matrix(
     @assert matrix_type in ["symmetric", "asymmetric"] "Matrix type must be 'symmetric' or 'asymmetric'"
     
     # Create the matrix
-    int_matrix = Matrix{Float64}(I, strains, strains)  # Identity matrix as base
+        int_matrix = zeros(Float64, row.strains, row.strains)
+        for k in 1:row.strains
+            int_matrix[k, k] = 1.0
+        end
     
     if matrix_type == "symmetric"
         # Fill upper triangle, then mirror to lower triangle
