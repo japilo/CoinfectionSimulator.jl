@@ -2,7 +2,6 @@
 Data preparation utilities for coinfection simulation experiments.
 """
 
-using LinearAlgebra
 using Random
 using Distributions
 using DataFrames
@@ -45,9 +44,7 @@ df = DataFrame(
 matrices = prep_interaction_matrix(df=df)
 ```
 """
-function prep_interaction_matrix(;
-    df::DataFrame
-)
+function prep_interaction_matrix(df::DataFrame)
     # Validate required columns
     required_columns = [:interaction_strength, :cf_ratio, :priority_effects, :strains]
     for col in required_columns
@@ -75,7 +72,10 @@ function prep_interaction_matrix(;
         end
         
         # Initialize matrix with ones on diagonal
-        int_matrix = Matrix{Float64}(I, row.strains, row.strains)
+        int_matrix = zeros(Float64, row.strains, row.strains)
+        for k in 1:row.strains
+            int_matrix[k, k] = 1.0
+        end
         
         # Fill off-diagonal elements
         for i in 1:row.strains

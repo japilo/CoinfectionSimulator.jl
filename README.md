@@ -24,6 +24,10 @@ using Pkg
 Pkg.add(url="https://github.com/japilo/CoinfectionSimulator.jl")
 ```
 
+## Performance
+
+The basic example in `examples/basic_example.jl` runs in 13.97 ms on a 2024 MacBook Pro with an M4 chip and 10 cores.
+
 ## Quick Start
 
 ```julia
