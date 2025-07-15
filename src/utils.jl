@@ -33,10 +33,10 @@ function infect(
 		int_indiv = interactions .* indiv_current
 
 		if total_strains[i] > 1
-			prob = max(prod(int_indiv) * beta, 1.0)
+			prob = min(prod(int_indiv) * beta, 1.0)
 			indiv_current[strain] = max(indiv_current[strain], rand(Binomial(length(infecteds), prob)))
 		elseif total_strains[i] == 1
-			prob = max(sum(int_indiv) * beta, 1.0)
+			prob = min(sum(int_indiv) * beta, 1.0)
 			indiv_current[strain] = max(indiv_current[strain], rand(Binomial(length(infecteds), prob)))
 		else
 			indiv_current[strain] = rand(Binomial(length(infecteds), beta))
@@ -308,7 +308,7 @@ function handle_infected_death(
 	infected_indices = findall(i -> i ∉ dead_indices && current_pop[i][strain, 3], 1:length(current_pop))
 	
 	if !isempty(infected_indices)
-		total_mortality = max(base_mortality + disease_mortality, 1.0)
+		total_mortality = min(base_mortality + disease_mortality, 1.0)
 		n_deaths = rand(Binomial(length(infected_indices), total_mortality))
 		
 		if n_deaths > 0
@@ -530,7 +530,7 @@ function handle_infected_death(
 	infected_indices = findall(i -> i ∉ dead_indices && current_pop[i][strain, 3], 1:length(current_pop))
 	
 	if !isempty(infected_indices)
-		total_mortality = max(base_mortality + disease_mortality, 1.0)
+		total_mortality = min(base_mortality + disease_mortality, 1.0)
 		n_deaths = rand(Binomial(length(infected_indices), total_mortality))
 		
 		if n_deaths > 0
@@ -561,10 +561,10 @@ function infect(
 		int_indiv = interactions .* indiv_current
 
 		if total_strains[i] > 1
-			prob = max(prod(int_indiv) * beta, 1.0)
+			prob = min(prod(int_indiv) * beta, 1.0)
 			indiv_current[strain] = max(indiv_current[strain], rand(Binomial(length(infecteds), prob)))
 		elseif total_strains[i] == 1
-			prob = max(sum(int_indiv) * beta, 1.0)
+			prob = min(sum(int_indiv) * beta, 1.0)
 			indiv_current[strain] = max(indiv_current[strain], rand(Binomial(length(infecteds), prob)))
 		else
 			indiv_current[strain] = rand(Binomial(length(infecteds), beta))
