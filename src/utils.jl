@@ -34,10 +34,12 @@ function infect(
 
 		if total_strains[i] > 1
 			prob = min(prod(int_indiv[int_indiv .> 0]) * beta, 1.0)
+			prob = max(prob, 0.0)
 			indiv_current[strain] = max(indiv_current[strain], rand(Binomial(length(infecteds), prob)))
 		elseif total_strains[i] == 1
 			active_strain_idx = findfirst(x -> x > 0, indiv_current)
 			prob = min(interactions[active_strain_idx] * beta, 1.0)
+			prob = max(prob, 0.0)
 			indiv_current[strain] = max(indiv_current[strain], rand(Binomial(length(infecteds), prob)))
 		else
 			indiv_current[strain] = rand(Binomial(length(infecteds), beta))
@@ -563,10 +565,12 @@ function infect(
 
 		if total_strains[i] > 1
 			prob = min(prod(int_indiv[int_indiv .> 0]) * beta, 1.0)
+			prob = max(prob, 0.0)
 			indiv_current[strain] = max(indiv_current[strain], rand(Binomial(length(infecteds), prob)))
 		elseif total_strains[i] == 1
 			active_strain_idx = findfirst(x -> x > 0, indiv_current)
 			prob = min(interactions[active_strain_idx] * beta, 1.0)
+			prob = max(prob, 0.0)
 			indiv_current[strain] = max(indiv_current[strain], rand(Binomial(length(infecteds), prob)))
 		else
 			indiv_current[strain] = rand(Binomial(length(infecteds), beta))
