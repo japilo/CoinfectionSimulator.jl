@@ -19,10 +19,6 @@ for individual in initial_pop
     individual[:, 1] .= true  # All individuals start susceptible
 end
 
-# Introduce patient zero for each strain
-initial_pop[1][1, 1] = false; initial_pop[1][1, 3] = true  # Strain 1
-initial_pop[2][2, 1] = false; initial_pop[2][2, 3] = true  # Strain 2
-
 # Random ages for the population
 ages = rand(1:80, n_individuals)
 
