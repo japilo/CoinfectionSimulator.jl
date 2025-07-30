@@ -19,7 +19,8 @@ interaction strength.
 - `:interaction_strength` (`Float64`): Defines the outer bounds of the interaction
   multipliers. For example, an interaction strength of 0.1 means that the interaction
   multipliers will be sampled from a uniform distribution between 0.9 and 1.1. Interaction
-  strength must be between 0 and 1.
+  strength must be between 0 and 1. If interaction strength is 0, all interactions will be
+  set to neutral (1.0) regardless of the `cf_ratio`.
 - `:cf_ratio` (`Float64`): Defines the ratio of facilitation to competition in the
   interaction matrix. A ratio less than 0.5 means that the matrix will have more
   competitive interactions, while a ratio greater than 0.5 means that the matrix will have
@@ -97,8 +98,13 @@ function prep_interaction_matrix(df::DataFrame)
 		comp_indices = setdiff(off_diagonal_indices, fac_indices)
 
 		# Fill matrix
-		int_matrix[fac_indices] = rand(Uniform(1.0, 1 + row.interaction_strength), length(fac_indices))
-		int_matrix[comp_indices] = rand(Uniform(1 - row.interaction_strength, 1.0), length(comp_indices))
+		if row.interaction_strength != 0
+			int_matrix[fac_indices] = rand(Uniform(1.0, 1 + row.interaction_strength), length(fac_indices))
+			int_matrix[comp_indices] = rand(Uniform(1 - row.interaction_strength, 1.0), length(comp_indices))
+		else
+			int_matrix[fac_indices] .= 1.0
+			int_matrix[comp_indices] .= 1.0
+		end
 
 		# Handle symmetry if needed
 		if !row.priority_effects
@@ -129,7 +135,8 @@ Generates a single interaction matrix with specified parameters. Interactions ar
 - `interaction_strength::Float64`: Defines the outer bounds of the interaction
   multipliers. For example, an interaction strength of 0.1 means that the interaction
   multipliers will be sampled from a uniform distribution between 0.9 and 1.1. Interaction
-  strength must be between 0 and 1.
+  strength must be between 0 and 1. If interaction strength is 0, all interactions will be
+  set to neutral (1.0) regardless of the `cf_ratio`.
 - `cf_ratio::Float64`: Defines the ratio of facilitation to competition in the
   interaction matrix. A ratio less than 0.5 means that the matrix will have more
   competitive interactions, while a ratio greater than 0.5 means that the matrix will have
@@ -174,8 +181,15 @@ function prep_interaction_matrix(
 	comp_indices = setdiff(off_diagonal_indices, fac_indices)
 
 	# Fill matrix
-	int_matrix[fac_indices] = rand(Uniform(1.0, 1 + interaction_strength), length(fac_indices))
-	int_matrix[comp_indices] = rand(Uniform(1 - interaction_strength, 1.0), length(comp_indices))
+	if interaction_strength == 0
+		# If interaction strength is 0, all interactions are neutral
+		int_matrix[fac_indices] .= 1.0
+		int_matrix[comp_indices] .= 1.0
+	else
+		# Sample from uniform distribution based on interaction strength
+		int_matrix[fac_indices] = rand(Uniform(1.0, 1 + interaction_strength), length(fac_indices))
+		int_matrix[comp_indices] = rand(Uniform(1 - interaction_strength, 1.0), length(comp_indices))
+	end
 
 	# Handle symmetry if needed
 	if !priority_effects
