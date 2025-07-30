@@ -7,7 +7,7 @@ using Distributions
 using StatsBase
 
 """
-    infect(susceptibles, infecteds, interactions, beta, strain)
+	infect(susceptibles, infecteds, interactions, beta, strain)
 
 Core infection function that determines which susceptible individuals become infected
 based on transmission probability and strain interactions.
@@ -52,7 +52,7 @@ function infect(
 end
 
 """
-    handle_si_disease(current_pop, alive, strain, transmission, interactions, base_mortality, disease_mortality, dead_indices)
+	handle_si_disease(current_pop, alive, strain, transmission, interactions, base_mortality, disease_mortality, dead_indices)
 
 Handle SI (Susceptible-Infected) disease dynamics for a single strain.
 """
@@ -74,7 +74,7 @@ function handle_si_disease(
 end
 
 """
-    handle_sir_disease(current_pop, alive, strain, transmission, interactions, base_mortality, disease_mortality, recovery, dead_indices)
+	handle_sir_disease(current_pop, alive, strain, transmission, interactions, base_mortality, disease_mortality, recovery, dead_indices)
 
 Handle SIR (Susceptible-Infected-Recovered) disease dynamics for a single strain.
 """
@@ -100,7 +100,7 @@ function handle_sir_disease(
 end
 
 """
-    handle_seir_disease(current_pop, alive, strain, transmission, interactions, base_mortality, disease_mortality, recovery, latency, dead_indices)
+	handle_seir_disease(current_pop, alive, strain, transmission, interactions, base_mortality, disease_mortality, recovery, latency, dead_indices)
 
 Handle SEIR (Susceptible-Exposed-Infected-Recovered) disease dynamics for a single strain.
 """
@@ -130,7 +130,7 @@ function handle_seir_disease(
 end
 
 """
-    handle_seirs_disease(current_pop, alive, strain, transmission, interactions, base_mortality, disease_mortality, recovery, latency, immunity_loss, dead_indices)
+	handle_seirs_disease(current_pop, alive, strain, transmission, interactions, base_mortality, disease_mortality, recovery, latency, immunity_loss, dead_indices)
 
 Handle SEIRS (Susceptible-Exposed-Infected-Recovered-Susceptible) disease dynamics for a single strain.
 """
@@ -156,7 +156,7 @@ function handle_seirs_disease(
 end
 
 """
-    handle_infection(current_pop, alive, strain, transmission, interactions)
+	handle_infection(current_pop, alive, strain, transmission, interactions)
 
 Handle the infection process for susceptible individuals.
 """
@@ -173,9 +173,9 @@ function handle_infection(
 	if !isempty(susceptible_indices) && !isempty(infected_indices)
 		susceptible_pop = current_pop[susceptible_indices]
 		infected_pop = current_pop[infected_indices]
-		
+
 		new_infections = infect(susceptible_pop, infected_pop, interactions, transmission, strain)
-		
+
 		for (i, is_infected) in enumerate(new_infections)
 			if is_infected
 				idx = susceptible_indices[i]
@@ -187,7 +187,7 @@ function handle_infection(
 end
 
 """
-    handle_exposure(current_pop, alive, strain, transmission, interactions)
+	handle_exposure(current_pop, alive, strain, transmission, interactions)
 
 Handle the exposure process for susceptible individuals in SEIR models.
 """
@@ -204,9 +204,9 @@ function handle_exposure(
 	if !isempty(susceptible_indices) && !isempty(infected_indices)
 		susceptible_pop = current_pop[susceptible_indices]
 		infected_pop = current_pop[infected_indices]
-		
+
 		new_exposures = infect(susceptible_pop, infected_pop, interactions, transmission, strain)
-		
+
 		for (i, is_exposed) in enumerate(new_exposures)
 			if is_exposed
 				idx = susceptible_indices[i]
@@ -218,7 +218,7 @@ function handle_exposure(
 end
 
 """
-    handle_exposed_infection(current_pop, alive, strain, latency)
+	handle_exposed_infection(current_pop, alive, strain, latency)
 
 Handle the transition from exposed to infected state.
 """
@@ -229,11 +229,11 @@ function handle_exposed_infection(
 	latency::Int,
 )
 	exposed_indices = findall(i -> alive[i] && current_pop[i][strain, 2], 1:length(current_pop))
-	
+
 	if !isempty(exposed_indices)
 		infection_prob = 1.0 / latency
 		n_infections = rand(Binomial(length(exposed_indices), infection_prob))
-		
+
 		if n_infections > 0
 			infected_indices = sample(exposed_indices, n_infections; replace = false)
 			for idx in infected_indices
@@ -245,7 +245,7 @@ function handle_exposed_infection(
 end
 
 """
-    handle_recovery(current_pop, alive, strain, recovery)
+	handle_recovery(current_pop, alive, strain, recovery)
 
 Handle recovery from infected to recovered state.
 """
@@ -256,10 +256,10 @@ function handle_recovery(
 	recovery::Float64,
 )
 	infected_indices = findall(i -> alive[i] && current_pop[i][strain, 3], 1:length(current_pop))
-	
+
 	if !isempty(infected_indices)
 		n_recoveries = rand(Binomial(length(infected_indices), recovery))
-		
+
 		if n_recoveries > 0
 			recovered_indices = sample(infected_indices, n_recoveries; replace = false)
 			for idx in recovered_indices
@@ -271,7 +271,7 @@ function handle_recovery(
 end
 
 """
-    handle_immunity_loss(current_pop, alive, strain, immunity_loss)
+	handle_immunity_loss(current_pop, alive, strain, immunity_loss)
 
 Handle loss of immunity (transition from recovered to susceptible).
 """
@@ -282,10 +282,10 @@ function handle_immunity_loss(
 	immunity_loss::Float64,
 )
 	recovered_indices = findall(i -> alive[i] && current_pop[i][strain, 4], 1:length(current_pop))
-	
+
 	if !isempty(recovered_indices)
 		n_immunity_loss = rand(Binomial(length(recovered_indices), immunity_loss))
-		
+
 		if n_immunity_loss > 0
 			susceptible_indices = sample(recovered_indices, n_immunity_loss; replace = false)
 			for idx in susceptible_indices
@@ -297,7 +297,7 @@ function handle_immunity_loss(
 end
 
 """
-    handle_infected_death(current_pop, strain, base_mortality, disease_mortality, dead_indices)
+	handle_infected_death(current_pop, strain, base_mortality, disease_mortality, dead_indices)
 
 Handle mortality of infected individuals.
 """
@@ -309,11 +309,11 @@ function handle_infected_death(
 	dead_indices::Set{Int},
 )
 	infected_indices = findall(i -> i ∉ dead_indices && current_pop[i][strain, 3], 1:length(current_pop))
-	
+
 	if !isempty(infected_indices)
 		total_mortality = min(base_mortality + disease_mortality, 1.0)
 		n_deaths = rand(Binomial(length(infected_indices), total_mortality))
-		
+
 		if n_deaths > 0
 			dead_individuals = sample(infected_indices, n_deaths; replace = false)
 			union!(dead_indices, dead_individuals)
@@ -420,9 +420,9 @@ function handle_infection(
 	if !isempty(susceptible_indices) && !isempty(infected_indices)
 		susceptible_pop = current_pop[susceptible_indices]
 		infected_pop = current_pop[infected_indices]
-		
+
 		new_infections = infect(susceptible_pop, infected_pop, interactions, transmission, strain)
-		
+
 		for (i, is_infected) in enumerate(new_infections)
 			if is_infected
 				idx = susceptible_indices[i]
@@ -446,9 +446,9 @@ function handle_exposure(
 	if !isempty(susceptible_indices) && !isempty(infected_indices)
 		susceptible_pop = current_pop[susceptible_indices]
 		infected_pop = current_pop[infected_indices]
-		
+
 		new_exposures = infect(susceptible_pop, infected_pop, interactions, transmission, strain)
-		
+
 		for (i, is_exposed) in enumerate(new_exposures)
 			if is_exposed
 				idx = susceptible_indices[i]
@@ -466,11 +466,11 @@ function handle_exposed_infection(
 	latency::Int,
 )
 	exposed_indices = findall(i -> alive[i] && current_pop[i][strain, 2], 1:length(current_pop))
-	
+
 	if !isempty(exposed_indices)
 		infection_prob = 1.0 / latency
 		n_infections = rand(Binomial(length(exposed_indices), infection_prob))
-		
+
 		if n_infections > 0
 			infected_indices = sample(exposed_indices, n_infections; replace = false)
 			for idx in infected_indices
@@ -488,10 +488,10 @@ function handle_recovery(
 	recovery::Float64,
 )
 	infected_indices = findall(i -> alive[i] && current_pop[i][strain, 3], 1:length(current_pop))
-	
+
 	if !isempty(infected_indices)
 		n_recoveries = rand(Binomial(length(infected_indices), recovery))
-		
+
 		if n_recoveries > 0
 			recovered_indices = sample(infected_indices, n_recoveries; replace = false)
 			for idx in recovered_indices
@@ -509,10 +509,10 @@ function handle_immunity_loss(
 	immunity_loss::Float64,
 )
 	recovered_indices = findall(i -> alive[i] && current_pop[i][strain, 4], 1:length(current_pop))
-	
+
 	if !isempty(recovered_indices)
 		n_immunity_loss = rand(Binomial(length(recovered_indices), immunity_loss))
-		
+
 		if n_immunity_loss > 0
 			susceptible_indices = sample(recovered_indices, n_immunity_loss; replace = false)
 			for idx in susceptible_indices
@@ -531,11 +531,11 @@ function handle_infected_death(
 	dead_indices::Set{Int},
 )
 	infected_indices = findall(i -> i ∉ dead_indices && current_pop[i][strain, 3], 1:length(current_pop))
-	
+
 	if !isempty(infected_indices)
 		total_mortality = min(base_mortality + disease_mortality, 1.0)
 		n_deaths = rand(Binomial(length(infected_indices), total_mortality))
-		
+
 		if n_deaths > 0
 			dead_individuals = sample(infected_indices, n_deaths; replace = false)
 			union!(dead_indices, dead_individuals)

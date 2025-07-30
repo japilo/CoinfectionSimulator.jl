@@ -3,12 +3,12 @@ Virtual ecologist sampling module - simulates imperfect detection in ecological 
 """
 
 """
-    virtual_ecologist_sample(;
-        virtual_population,
-        proportion_sampled::Float64,
-        false_positive_rate::Float64,
-        false_negative_rate::Float64
-    ) -> Matrix{Bool}
+	virtual_ecologist_sample(;
+		virtual_population,
+		proportion_sampled::Float64,
+		false_positive_rate::Float64,
+		false_negative_rate::Float64
+	) -> Matrix{Bool}
 
 Simulates sampling by a virtual ecologist with imperfect detection capabilities.
 
@@ -31,10 +31,10 @@ pop = [[rand(Bool, 3, 4) for _ in 1:10] for _ in 1:5]  # 5 timesteps, 10 individ
 
 # Sample with 50% sampling rate and 10% error rates
 detections = virtual_ecologist_sample(
-    virtual_population=pop,
-    proportion_sampled=0.5,
-    false_positive_rate=0.1,
-    false_negative_rate=0.1
+	virtual_population=pop,
+	proportion_sampled=0.5,
+	false_positive_rate=0.1,
+	false_negative_rate=0.1
 )
 ```
 """
@@ -55,25 +55,25 @@ function virtual_ecologist_sample(;
 	# Get dimensions
 	n_timesteps = length(virtual_population)
 	n_strains = isempty(virtual_population[1]) ? 0 : size(virtual_population[1][1], 1)
-	
+
 	# Initialize detection matrix
 	detect_matrix = falses(n_timesteps, n_strains)
 
 	# Process each timestep
 	for t in 1:n_timesteps
 		timestep_pop = virtual_population[t]
-		
+
 		# Skip empty timesteps
 		if isempty(timestep_pop)
 			continue
 		end
-		
+
 		n_individuals = length(timestep_pop)
 		individuals_sampled = max(1, round(Int, proportion_sampled * n_individuals))
-		
+
 		# Randomly sample individuals
-		sampled_indices = sample(1:n_individuals, individuals_sampled; replace=false)
-		
+		sampled_indices = sample(1:n_individuals, individuals_sampled; replace = false)
+
 		# Extract infection status (column 3) for sampled individuals
 		perfect_sample = [timestep_pop[i][:, 3] for i in sampled_indices]
 		imperfect_sample = falses(individuals_sampled, n_strains)
@@ -93,7 +93,7 @@ function virtual_ecologist_sample(;
 
 		# Determine strain detection at timestep level
 		# A strain is detected if at least one sampled individual tests positive
-		detect_matrix[t, :] = vec(sum(imperfect_sample, dims=1)) .> 0
+		detect_matrix[t, :] = vec(sum(imperfect_sample, dims = 1)) .> 0
 	end
 
 	return detect_matrix

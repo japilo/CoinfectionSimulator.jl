@@ -1,7 +1,7 @@
 name = "CoinfectionSimulator"
 uuid = "7d77d32e-a319-475a-a7da-1ed1d9bcafc7"
 authors = ["July Pilowsky <japilo@users.noreply.github.com>"]
-version = "0.2.0"
+version = "0.3.0"
 
 [deps]
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"

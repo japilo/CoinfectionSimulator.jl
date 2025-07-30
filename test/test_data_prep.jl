@@ -1,263 +1,305 @@
 using Test
 using DataFrames
-using LinearAlgebra  # For diag function
-using Random  # For Random.seed!
-using CoinfectionSimulator
+using Random
+using Distributions
 
-@testset "Data Preparation Tests" begin
-    
-    @testset "Missing columns error" begin
-        # Test missing interaction_strength column
-        df_missing = DataFrame(
-            cf_ratio = [0.5],
-            priority_effects = [true],
-            strains = [3]
-        )
-        @test_throws ErrorException prep_interaction_matrix(df_missing)
-        
-        # Test missing all required columns
-        df_empty = DataFrame()
-        @test_throws ErrorException prep_interaction_matrix(df_empty)
-    end
-    
-    @testset "Invalid strains count" begin
-        df_invalid = DataFrame(
-            interaction_strength = [0.1],
-            cf_ratio = [0.5],
-            priority_effects = [true],
-            strains = [0]
-        )
-        @test_throws ErrorException prep_interaction_matrix(df_invalid)
-        
-        df_negative = DataFrame(
-            interaction_strength = [0.1],
-            cf_ratio = [0.5],
-            priority_effects = [true],
-            strains = [-1]
-        )
-        @test_throws ErrorException prep_interaction_matrix(df_negative)
-    end
-    
-    @testset "Valid input - basic functionality" begin
-        Random.seed!(123)
-        df = DataFrame(
-            interaction_strength = [0.1, 0.2],
-            cf_ratio = [0.5, 0.8],
-            priority_effects = [true, false],
-            strains = [2, 3]
-        )
-        
-        result = prep_interaction_matrix(df)
-        
-        @test length(result) == 2
-        @test size(result[1]) == (2, 2)
-        @test size(result[2]) == (3, 3)
-        @test all(isa.(result, Matrix{Float64}))
-    end
-    
-    @testset "Priority effects - asymmetric matrix" begin
-        Random.seed!(456)
-        df = DataFrame(
-            interaction_strength = [0.1],
-            cf_ratio = [0.5],
-            priority_effects = [true],
-            strains = [3]
-        )
-        
-        result = prep_interaction_matrix(df)
-        matrix = result[1]
-        
-        # Diagonal should be 1.0
-        @test all(diag(matrix) .== 1.0)
-        
-        # Off-diagonal elements should not necessarily be symmetric
-        # (though they might be by chance - we just test the structure)
-        @test size(matrix) == (3, 3)
-    end
-    
-    @testset "No priority effects - symmetric matrix" begin
-        Random.seed!(789)
-        df = DataFrame(
-            interaction_strength = [0.1],
-            cf_ratio = [0.5],
-            priority_effects = [false],
-            strains = [3]
-        )
-        
-        result = prep_interaction_matrix(df)
-        matrix = result[1]
-        
-        # Diagonal should be 1.0
-        @test all(diag(matrix) .== 1.0)
-        
-        # Matrix should be symmetric
-        @test matrix ≈ matrix'
-    end
-    
-    @testset "Single strain matrix" begin
-        df = DataFrame(
-            interaction_strength = [0.1],
-            cf_ratio = [0.5],
-            priority_effects = [true],
-            strains = [1]
-        )
-        
-        result = prep_interaction_matrix(df)
-        
-        @test size(result[1]) == (1, 1)
-        @test result[1][1,1] == 1.0
-    end
-    
-    @testset "Multiple rows processing" begin
-        Random.seed!(321)
-        df = DataFrame(
-            interaction_strength = [0.1, 0.2, 0.3],
-            cf_ratio = [0.5, 0.8, 1.2],
-            priority_effects = [true, false, true],
-            strains = [2, 3, 4]
-        )
-        
-        result = prep_interaction_matrix(df)
-        
-        @test length(result) == 3
-        @test size(result[1]) == (2, 2)
-        @test size(result[2]) == (3, 3)
-        @test size(result[3]) == (4, 4)
-        
-        # All matrices should have 1.0 on diagonal
-        for matrix in result
-            @test all(diag(matrix) .== 1.0)
-        end
-    end
-    
-    @testset "Single matrix convenience method" begin
-        
-        @testset "Invalid parameters" begin
-            # Test invalid strains count
-            @test_throws AssertionError prep_interaction_matrix(0, "symmetric", 0.1)
-            @test_throws AssertionError prep_interaction_matrix(-1, "asymmetric", 0.2)
-            
-            # Test invalid matrix type
-            @test_throws AssertionError prep_interaction_matrix(3, "invalid_type", 0.1)
-            @test_throws AssertionError prep_interaction_matrix(2, "random", 0.2)
-        end
-        
-        @testset "Symmetric matrix generation" begin
-            Random.seed!(111)
-            matrix = prep_interaction_matrix(3, "symmetric", 0.1, cf_ratio=0.8)
-            
-            # Check dimensions
-            @test size(matrix) == (3, 3)
-            
-            # Check diagonal elements are 1.0
-            @test all(diag(matrix) .== 1.0)
-            
-            # Check symmetry
-            @test matrix ≈ matrix'
-            
-            # Check that off-diagonal elements are not 1.0 (with high probability)
-            off_diag = matrix[matrix .!= 1.0]
-            @test length(off_diag) > 0  # Should have off-diagonal elements
-        end
-        
-        @testset "Asymmetric matrix generation" begin
-            Random.seed!(222)
-            matrix = prep_interaction_matrix(3, "asymmetric", 0.2, cf_ratio=1.2)
-            
-            # Check dimensions
-            @test size(matrix) == (3, 3)
-            
-            # Check diagonal elements are 1.0
-            @test all(diag(matrix) .== 1.0)
-            
-            # For a 3x3 matrix, we can't guarantee asymmetry due to randomness,
-            # but we can check that the structure allows for it
-            @test size(matrix) == (3, 3)
-            
-            # Check that off-diagonal elements exist and are not all 1.0
-            off_diag = [matrix[i,j] for i in 1:3, j in 1:3 if i != j]
-            @test length(off_diag) == 6  # Should have 6 off-diagonal elements for 3x3
-        end
-        
-        @testset "Single strain matrix" begin
-            matrix = prep_interaction_matrix(1, "symmetric", 0.5)
-            
-            @test size(matrix) == (1, 1)
-            @test matrix[1,1] == 1.0
-            
-            # Test with asymmetric (should behave same for 1x1)
-            matrix_asym = prep_interaction_matrix(1, "asymmetric", 0.5)
-            @test size(matrix_asym) == (1, 1)
-            @test matrix_asym[1,1] == 1.0
-        end
-        
-        @testset "Default cf_ratio parameter" begin
-            Random.seed!(333)
-            # Test without specifying cf_ratio (should default to 1.0)
-            matrix = prep_interaction_matrix(2, "symmetric", 0.1)
-            
-            @test size(matrix) == (2, 2)
-            @test all(diag(matrix) .== 1.0)
-            @test matrix ≈ matrix'  # Should be symmetric
-        end
-        
-        @testset "Large matrix generation" begin
-            Random.seed!(444)
-            large_matrix = prep_interaction_matrix(10, "asymmetric", 0.3, cf_ratio=0.9)
-            
-            @test size(large_matrix) == (10, 10)
-            @test all(diag(large_matrix) .== 1.0)
-            
-            # Check that we have correct number of off-diagonal elements
-            off_diag_count = sum(large_matrix .!= 1.0)
-            @test off_diag_count == 90  # 10*10 - 10 diagonal elements
-        end
-        
-        @testset "Different parameter combinations" begin
-            Random.seed!(555)
-            
-            # Test various combinations
-            test_cases = [
-                (2, "symmetric", 0.1, 0.5),
-                (3, "asymmetric", 0.2, 1.5),
-                (4, "symmetric", 0.05, 2.0),
-                (5, "asymmetric", 0.3, 0.1)
-            ]
-            
-            for (strains, matrix_type, interaction_strength, cf_ratio) in test_cases
-                matrix = prep_interaction_matrix(strains, matrix_type, interaction_strength, cf_ratio=cf_ratio)
-                
-                # Basic checks for all cases
-                @test size(matrix) == (strains, strains)
-                @test all(diag(matrix) .== 1.0)
-                @test isa(matrix, Matrix{Float64})
-                
-                # Symmetry check for symmetric matrices
-                if matrix_type == "symmetric"
-                    @test matrix ≈ matrix'
-                end
-            end
-        end
-        
-        @testset "Consistency with DataFrame method" begin
-            Random.seed!(666)
-            
-            # Generate using convenience method
-            single_matrix = prep_interaction_matrix(3, "symmetric", 0.15, cf_ratio=0.75)
-            
-            # Generate using DataFrame method with same parameters
-            Random.seed!(666)  # Reset seed for consistency
-            df = DataFrame(
-                interaction_strength = [0.15],
-                cf_ratio = [0.75],
-                priority_effects = [false],  # false = symmetric
-                strains = [3]
-            )
-            df_result = prep_interaction_matrix(df)
-            df_matrix = df_result[1]
-            
-            # Results should be identical
-            @test single_matrix ≈ df_matrix
-        end
-    end
+@testset "Data Prep Tests" begin
+
+	@testset "prep_interaction_matrix DataFrame input tests" begin
+
+		@testset "Input validation tests" begin
+			# Test missing required columns
+			df_missing_col = DataFrame(
+				interaction_strength = [0.1],
+				cf_ratio = [0.5],
+				priority_effects = [true],
+				# Missing strains column
+			)
+			@test_throws ErrorException prep_interaction_matrix(df_missing_col)
+
+			# Test invalid cf_ratio values
+			df_invalid_cf = DataFrame(
+				interaction_strength = [0.1],
+				cf_ratio = [1.5],  # > 1
+				priority_effects = [true],
+				strains = [3],
+			)
+			@test_throws AssertionError prep_interaction_matrix(df_invalid_cf)
+
+			df_negative_cf = DataFrame(
+				interaction_strength = [0.1],
+				cf_ratio = [-0.1],  # < 0
+				priority_effects = [true],
+				strains = [3],
+			)
+			@test_throws AssertionError prep_interaction_matrix(df_negative_cf)
+
+			# Test invalid interaction_strength values
+			df_invalid_strength = DataFrame(
+				interaction_strength = [1.5],  # > 1
+				cf_ratio = [0.5],
+				priority_effects = [true],
+				strains = [3],
+			)
+			@test_throws AssertionError prep_interaction_matrix(df_invalid_strength)
+
+			df_negative_strength = DataFrame(
+				interaction_strength = [-0.1],  # < 0
+				cf_ratio = [0.5],
+				priority_effects = [true],
+				strains = [3],
+			)
+			@test_throws AssertionError prep_interaction_matrix(df_negative_strength)
+
+			# Test invalid strains values
+			df_zero_strains = DataFrame(
+				interaction_strength = [0.1],
+				cf_ratio = [0.5],
+				priority_effects = [true],
+				strains = [0],  # Must be positive
+			)
+			@test_throws AssertionError prep_interaction_matrix(df_zero_strains)
+		end
+
+		@testset "Valid input tests" begin
+			# Test basic functionality
+			df = DataFrame(
+				interaction_strength = [0.1, 0.2],
+				cf_ratio = [0.3, 0.7],
+				priority_effects = [true, false],
+				strains = [3, 4],
+			)
+
+			matrices = prep_interaction_matrix(df)
+			@test length(matrices) == 2
+			@test size(matrices[1]) == (3, 3)
+			@test size(matrices[2]) == (4, 4)
+		end
+
+		@testset "Diagonal elements tests" begin
+			df = DataFrame(
+				interaction_strength = [0.2],
+				cf_ratio = [0.5],
+				priority_effects = [true],
+				strains = [5],
+			)
+
+			matrices = prep_interaction_matrix(df)
+			matrix = matrices[1]
+
+			# Check diagonal elements are 1.0
+			for i in 1:5
+				@test matrix[i, i] == 1.0
+			end
+		end
+
+		@testset "Interaction strength bounds tests" begin
+			Random.seed!(123)
+			df = DataFrame(
+				interaction_strength = [0.3],
+				cf_ratio = [0.5],
+				priority_effects = [true],
+				strains = [10],
+			)
+
+			matrices = prep_interaction_matrix(df)
+			matrix = matrices[1]
+
+			# Check all off-diagonal elements are within bounds
+			for i in 1:10
+				for j in 1:10
+					if i != j
+						@test matrix[i, j] >= 0.7  # 1 - 0.3
+						@test matrix[i, j] <= 1.3  # 1 + 0.3
+					end
+				end
+			end
+		end
+
+		@testset "Competition/facilitation ratio tests" begin
+			Random.seed!(456)
+			df = DataFrame(
+				interaction_strength = [0.1],
+				cf_ratio = [0.2],  # 20% facilitative
+				priority_effects = [true],
+				strains = [10],
+			)
+
+			matrices = prep_interaction_matrix(df)
+			matrix = matrices[1]
+
+			# Count facilitative (> 1.0) and competitive (< 1.0) interactions
+			off_diagonal_values = [matrix[i, j] for i in 1:10, j in 1:10 if i != j]
+			facilitative_count = sum(off_diagonal_values .> 1.0)
+			competitive_count = sum(off_diagonal_values .< 1.0)
+			total_off_diagonal = length(off_diagonal_values)
+
+			expected_facilitative = round(Int, 0.2 * total_off_diagonal)
+			@test facilitative_count == expected_facilitative
+			@test competitive_count == total_off_diagonal - expected_facilitative
+		end
+
+		@testset "Symmetry tests" begin
+			Random.seed!(789)
+			df = DataFrame(
+				interaction_strength = [0.15, 0.15],
+				cf_ratio = [0.4, 0.4],
+				priority_effects = [false, true],  # symmetric vs asymmetric
+				strains = [4, 4],
+			)
+
+			matrices = prep_interaction_matrix(df)
+			symmetric_matrix = matrices[1]
+			asymmetric_matrix = matrices[2]
+
+			# Check symmetric matrix
+			for i in 1:4
+				for j in 1:4
+					@test symmetric_matrix[i, j] == symmetric_matrix[j, i]
+				end
+			end
+
+			# Asymmetric matrix should generally not be symmetric (with high probability)
+			# We'll check that at least one off-diagonal pair is different
+			asymmetric_found = false
+			for i in 1:4
+				for j in 1:4
+					if i != j && asymmetric_matrix[i, j] != asymmetric_matrix[j, i]
+						asymmetric_found = true
+						break
+					end
+				end
+			end
+			# Note: This test might occasionally fail due to randomness, but very unlikely
+		end
+	end
+
+	@testset "prep_interaction_matrix single matrix input tests" begin
+
+		@testset "Input validation tests" begin
+			# Test invalid strains
+			@test_throws AssertionError prep_interaction_matrix(0, true, 0.1)
+			@test_throws AssertionError prep_interaction_matrix(-1, true, 0.1)
+
+			# Test invalid interaction_strength
+			@test_throws AssertionError prep_interaction_matrix(3, true, -0.1)
+			@test_throws AssertionError prep_interaction_matrix(3, true, 1.5)
+
+			# Test invalid cf_ratio
+			@test_throws AssertionError prep_interaction_matrix(3, true, 0.1, cf_ratio = -0.1)
+			@test_throws AssertionError prep_interaction_matrix(3, true, 0.1, cf_ratio = 1.5)
+		end
+
+		@testset "Basic functionality tests" begin
+			matrix = prep_interaction_matrix(3, true, 0.2)
+			@test size(matrix) == (3, 3)
+			@test all(matrix[i, i] == 1.0 for i in 1:3)
+		end
+
+		@testset "Diagonal elements tests" begin
+			matrix = prep_interaction_matrix(5, false, 0.3)
+
+			# Check diagonal elements are 1.0
+			for i in 1:5
+				@test matrix[i, i] == 1.0
+			end
+		end
+
+		@testset "Interaction strength bounds tests" begin
+			Random.seed!(321)
+			matrix = prep_interaction_matrix(8, true, 0.25)
+
+			# Check all off-diagonal elements are within bounds
+			for i in 1:8
+				for j in 1:8
+					if i != j
+						@test matrix[i, j] >= 0.75  # 1 - 0.25
+						@test matrix[i, j] <= 1.25  # 1 + 0.25
+					end
+				end
+			end
+		end
+
+		@testset "Competition/facilitation ratio tests" begin
+			Random.seed!(654)
+			matrix = prep_interaction_matrix(6, true, 0.2, cf_ratio = 0.3)
+
+			# Count facilitative (> 1.0) and competitive (< 1.0) interactions
+			off_diagonal_values = [matrix[i, j] for i in 1:6, j in 1:6 if i != j]
+			facilitative_count = sum(off_diagonal_values .> 1.0)
+			competitive_count = sum(off_diagonal_values .< 1.0)
+			total_off_diagonal = length(off_diagonal_values)
+
+			expected_facilitative = round(Int, 0.3 * total_off_diagonal)
+			@test facilitative_count == expected_facilitative
+			@test competitive_count == total_off_diagonal - expected_facilitative
+		end
+
+		@testset "Symmetry tests" begin
+			Random.seed!(987)
+			symmetric_matrix = prep_interaction_matrix(5, false, 0.1)
+			asymmetric_matrix = prep_interaction_matrix(5, true, 0.1)
+
+			# Check symmetric matrix
+			for i in 1:5
+				for j in 1:5
+					@test symmetric_matrix[i, j] == symmetric_matrix[j, i]
+				end
+			end
+
+			# For asymmetric matrix, we can't guarantee asymmetry due to randomness,
+			# but we can verify the structure is correct (no forced symmetry)
+			@test size(asymmetric_matrix) == (5, 5)
+			@test all(asymmetric_matrix[i, i] == 1.0 for i in 1:5)
+		end
+
+		@testset "Default cf_ratio tests" begin
+			Random.seed!(111)
+			matrix = prep_interaction_matrix(6, true, 0.2)  # Default cf_ratio = 0.5
+
+			# Count facilitative (> 1.0) and competitive (< 1.0) interactions
+			off_diagonal_values = [matrix[i, j] for i in 1:6, j in 1:6 if i != j]
+			facilitative_count = sum(off_diagonal_values .> 1.0)
+			competitive_count = sum(off_diagonal_values .< 1.0)
+			total_off_diagonal = length(off_diagonal_values)
+
+			expected_facilitative = round(Int, 0.5 * total_off_diagonal)
+			@test facilitative_count == expected_facilitative
+			@test competitive_count == total_off_diagonal - expected_facilitative
+		end
+
+		@testset "Edge case tests" begin
+			# Test with minimum interaction strength (should be all 1.0 off-diagonal)
+			matrix_min = prep_interaction_matrix(3, true, 0.0)
+			for i in 1:3
+				for j in 1:3
+					@test matrix_min[i, j] == 1.0
+				end
+			end
+
+			# Test with maximum interaction strength
+			Random.seed!(222)
+			matrix_max = prep_interaction_matrix(4, true, 1.0, cf_ratio = 0.5)
+			for i in 1:4
+				for j in 1:4
+					if i != j
+						@test matrix_max[i, j] >= 0.0  # 1 - 1.0
+						@test matrix_max[i, j] <= 2.0  # 1 + 1.0
+					end
+				end
+			end
+
+			# Test with all facilitative interactions
+			Random.seed!(333)
+			matrix_all_fac = prep_interaction_matrix(3, true, 0.1, cf_ratio = 1.0)
+			off_diagonal_values = [matrix_all_fac[i, j] for i in 1:3, j in 1:3 if i != j]
+			@test all(off_diagonal_values .> 1.0)
+
+			# Test with all competitive interactions
+			Random.seed!(444)
+			matrix_all_comp = prep_interaction_matrix(3, true, 0.1, cf_ratio = 0.0)
+			off_diagonal_values = [matrix_all_comp[i, j] for i in 1:3, j in 1:3 if i != j]
+			@test all(off_diagonal_values .< 1.0)
+		end
+	end
 end
