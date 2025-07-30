@@ -1,234 +1,518 @@
 """
-Coinfection simulator module - handles the main simulation logic for multi-strain epidemiological models.
+Simulator module for multi-strain coinfection dynamics.
 """
 
-"""
-  coinfection_simulator(;
-	initial_pop::Vector{<:AbstractMatrix{Bool}},
-	ages::Vector{Int},
-	interactions::Matrix{Float64},
-	disease_type::Vector{String},
-	base_mortality::Float64,
-	disease_mortality::Vector{Float64},
-	fecundity::Float64,
-	transmission::Vector{Float64},
-	time_steps::Int,
-	age_maturity::Int,
-	introduction::String = "simultaneous",
-	latency::Union{Vector{Int}, Nothing} = nothing,
-	recovery::Union{Vector{Float64}, Nothing} = nothing,
-	immunity_loss::Union{Vector{Float64}, Nothing} = nothing
-  ) -> Tuple{Vector{Vector{<:AbstractMatrix{Bool}}}, Vector{Vector{Int}}}
+# Import specific functions we need from StatsBase and Distributions
+using StatsBase: sample
+using Distributions: Binomial, Poisson
 
-Simulates multiple pathogen strains spreading through a host population with possible coinfection dynamics.
+"""
+    simulate(initial_population::Population, params::SimulationParameters) -> Tuple{Vector{Population}, Vector{Vector{Int}}}
+
+    Simulates multiple pathogen strains spreading through a host population with coinfection dynamics among the strains.
 
 # Arguments
-- `initial_pop::Vector{<:AbstractMatrix{Bool}}`: Vector of matrices representing the initial population. 
-  Each matrix represents an individual, with rows corresponding to strains and columns 
-  representing disease states (Susceptible, Exposed, Infected, Recovered as `[S,E,I,R]`).
-  Can be either Matrix{Bool} or BitMatrix.
-- `ages::Vector{Int}`: Ages of each individual in the initial population.
-- `interactions::Matrix{Float64}`: Matrix of interaction factors between strains. Values > 1 indicate 
-  synergistic interactions, values < 1 indicate antagonistic interactions.
-- `disease_type::Vector{String}`: Vector specifying model type for each strain. 
-  Must be one of: "si", "sir", "seir", or "seirs".
-- `base_mortality::Float64`: Background mortality rate per time step.
-- `disease_mortality::Vector{Float64}`: Additional mortality rate for each strain when infected.
-- `fecundity::Float64`: Mean number of offspring per mature individual per time step.
-- `transmission::Vector{Float64}`: Transmission probability for each strain.
-- `time_steps::Int`: Number of time steps to simulate.
-- `age_maturity::Int`: Age at which individuals can reproduce.
-- `introduction::String`: How strains are introduced: "simultaneous" (all at once) or 
-  "random" (randomly throughout simulation) or "none" (no infections are introduced by the function). 
-  Default is "simultaneous".
-- `latency::Union{Vector{Int}, Nothing}`: Required for SEIR/SEIRS models. Vector of latency periods 
-  for each strain (number of time steps in exposed state).
-- `recovery::Union{Vector{Float64}, Nothing}`: Required for SIR/SEIR/SEIRS models. 
-  Recovery probability for each strain.
-- `immunity_loss::Union{Vector{Float64}, Nothing}`: Required for SEIRS models.
-  Probability of losing immunity for each strain.
+- `initial_population::Population`: Initial population of individuals
+- `params::SimulationParameters`: Parameters for the simulation. The fields are:
+    - `models::Vector{<:DiseaseModel}`: Disease models for each strain
+    - `interactions::Matrix{Float64}`: Strain interaction matrix
+    - `base_mortality::Float64`: Background mortality rate
+    - `fecundity::Float64`: Mean number of offspring per mature individual
+    - `age_maturity::Int`: Age (in time steps) at which individuals can reproduce
+    - `introduction::Symbol`: How strains are introduced (:simultaneous, :random, or :none)
+    - `time_steps::Int`: Number of time steps to simulate
 
 # Returns
 A tuple containing:
-1. Vector of population states at each time step, where each state is a vector of individual matrices
-2. Vector of individual ages at each time step (in the same order as the population states)
+1. Vector of population states at each time step (Vector{Population})
+2. Vector of individual ages at each time step (Vector{Vector{Int}})
+"""
+function simulate(initial_population::Population, params::SimulationParameters)
+    # Initialize results
+    n_steps = params.time_steps
+    result_pop = Vector{Population}(undef, n_steps)
+    result_pop[1] = deepcopy(initial_population)
+    result_ages = Vector{Vector{Int}}(undef, n_steps)
+    result_ages[1] = [ind.age for ind in initial_population]
 
-# Disease State Format
-Each individual is represented by an n×4 matrix where n is the number of strains:
-- Column 1: Susceptible state (true if susceptible)
-- Column 2: Exposed state (true if exposed, for SEIR/SEIRS models)
-- Column 3: Infected state (true if infected)
-- Column 4: Recovered state (true if recovered, for SIR/SEIR/SEIRS models)
+    # Strain introduction timing
+    n_strains = isempty(initial_population) ? length(params.models) : size(initial_population[1], 1)
+    intro_step = if params.introduction == :simultaneous
+        ones(Int, n_strains)
+    elseif params.introduction == :random
+        rand(1:n_steps, n_strains)
+    else # :none
+        zeros(Int, n_strains)
+    end
+
+    # Time loop
+    for t in 1:(n_steps-1)
+        current_pop = deepcopy(result_pop[t])
+
+        # Introduce infections
+        if any(intro_step .== t)
+            introduce_infections!(current_pop, t, intro_step)
+        end
+
+        # Breeding
+        breeding!(current_pop, params.fecundity, params.age_maturity)
+
+        # Process disease dynamics
+        mortality_list = Set{Int}()
+        process_disease_dynamics!(current_pop, params, mortality_list)
+
+        # Apply mortality
+        if !isempty(mortality_list)
+            alive_mask = [i ∉ mortality_list for i in 1:length(current_pop)]
+            current_pop = Population(current_pop.individuals[alive_mask])
+        end
+
+        # Age surviving individuals
+        for ind in current_pop
+            ind.age += 1
+        end
+
+        # Store results
+        result_pop[t+1] = current_pop
+        result_ages[t+1] = [ind.age for ind in current_pop]
+    end
+
+    return (result_pop, result_ages)
+end
+
+"""
+    introduce_infections!(population::Population, timestep::Int, intro_schedule::Vector{Int})
+
+Introduce infections into the population according to the introduction schedule.
+"""
+function introduce_infections!(population::Population, timestep::Int, intro_schedule::Vector{Int})
+    strains_to_introduce = findall(intro_schedule .== timestep)
+    isempty(strains_to_introduce) && return
+
+    n_individuals = length(population)
+    n_to_infect = min(length(strains_to_introduce), n_individuals)
+
+    infected_indices = sample(1:n_individuals, n_to_infect, replace=false)
+
+    for (i, idx) in enumerate(infected_indices)
+        strain = strains_to_introduce[i]
+        # Change state from susceptible to infected
+        population[idx][strain, 1] = false
+        population[idx][strain, 3] = true
+    end
+end
+
+"""
+    breeding!(population::Population, fecundity::Float64, maturity_age::Int)
+
+Handle reproduction of mature individuals in the population.
+"""
+function breeding!(population::Population, fecundity::Float64, maturity_age::Int)
+    fecundity <= 0 && return
+
+    # Count breeding-age individuals
+    mature_count = count(ind -> ind.age >= maturity_age, population)
+    mature_count == 0 && return
+
+    # Sample number of births from Poisson distribution
+    n_births = rand(Poisson(mature_count * fecundity))
+    n_births == 0 && return
+
+    # Create new individuals
+    n_strains = size(population[1], 1)
+    for _ in 1:n_births
+        add_individual!(population, Individual(n_strains, 0))
+    end
+end
+
+"""
+    process_disease_dynamics!(population::Population, params::SimulationParameters, mortality_list::Set{Int})
+
+Process all disease dynamics for one time step.
+"""
+function process_disease_dynamics!(population::Population, params::SimulationParameters, mortality_list::Set{Int})
+    isempty(population) && return
+
+    # For each strain, check if any infections are active
+    n_strains = length(params.models)
+    active_infections = falses(n_strains)
+
+    for ind in population
+        for strain in 1:n_strains
+            if ind[strain, 2] || ind[strain, 3]  # Exposed or Infected
+                active_infections[strain] = true
+                break
+            end
+        end
+    end
+
+    # Get alive individuals (not already marked for death)
+    alive = [i ∉ mortality_list for i in 1:length(population)]
+
+    # Process each strain
+    for strain in 1:n_strains
+        # Base mortality for uninfected individuals
+        apply_base_mortality!(population, alive, strain, params.base_mortality, mortality_list)
+
+        # Skip if no active infections for this strain
+        !active_infections[strain] && continue
+
+        # Update alive mask
+        alive = [i ∉ mortality_list for i in 1:length(population)]
+
+        # Process the appropriate disease model
+        process_strain!(population, alive, strain, params.models[strain], params.interactions[strain, :],
+            params.base_mortality, mortality_list)
+    end
+end
+
+"""
+    apply_base_mortality!(population::Population, alive::Vector{Bool}, strain::Int,
+                         base_mortality::Float64, mortality_list::Set{Int})
+
+Apply background mortality to uninfected individuals.
+"""
+function apply_base_mortality!(population::Population, alive::Vector{Bool}, strain::Int,
+    base_mortality::Float64, mortality_list::Set{Int})
+    base_mortality <= 0 && return
+
+    # Find uninfected individuals (in S, E, or R state)
+    uninfected_indices = findall(i -> alive[i] && !population[i][strain, 3], 1:length(population))
+    isempty(uninfected_indices) && return
+
+    # Apply mortality
+    n_deaths = rand(Binomial(length(uninfected_indices), base_mortality))
+    n_deaths <= 0 && return
+
+    dead_indices = sample(uninfected_indices, n_deaths, replace=false)
+    union!(mortality_list, dead_indices)
+end
+
+
+"""
+    process_strain!(population::Population, alive::Vector{Bool}, strain::Int,
+                   model::DiseaseModel, interactions::Vector{Float64},
+                   base_mortality::Float64, mortality_list::Set{Int})
+
+Process disease dynamics for a specific strain based on its disease model.
+"""
+function process_strain!(population::Population, alive::Vector{Bool}, strain::Int,
+    model::SIModel, interactions::Vector{Float64},
+    base_mortality::Float64, mortality_list::Set{Int})
+    # Process infection spread
+    process_infections!(population, alive, strain, model.transmission, interactions)
+
+    # Process mortality from infection
+    process_disease_mortality!(population, alive, strain, base_mortality, model.mortality, mortality_list)
+end
+
+function process_strain!(population::Population, alive::Vector{Bool}, strain::Int,
+    model::SIRModel, interactions::Vector{Float64},
+    base_mortality::Float64, mortality_list::Set{Int})
+    # Process infection spread
+    process_infections!(population, alive, strain, model.transmission, interactions)
+
+    # Process recovery
+    process_recovery!(population, alive, strain, model.recovery)
+
+    # Process mortality from infection
+    process_disease_mortality!(population, alive, strain, base_mortality, model.mortality, mortality_list)
+end
+
+function process_strain!(population::Population, alive::Vector{Bool}, strain::Int,
+    model::SEIRModel, interactions::Vector{Float64},
+    base_mortality::Float64, mortality_list::Set{Int})
+    # Process exposure
+    process_exposures!(population, alive, strain, model.transmission, interactions)
+
+    # Process transition from exposed to infected
+    process_latent_infections!(population, alive, strain, model.latency)
+
+    # Process recovery
+    process_recovery!(population, alive, strain, model.recovery)
+
+    # Process mortality from infection
+    process_disease_mortality!(population, alive, strain, base_mortality, model.mortality, mortality_list)
+end
+
+function process_strain!(population::Population, alive::Vector{Bool}, strain::Int,
+    model::SEIRSModel, interactions::Vector{Float64},
+    base_mortality::Float64, mortality_list::Set{Int})
+    # Process exposure
+    process_exposures!(population, alive, strain, model.transmission, interactions)
+
+    # Process transition from exposed to infected
+    process_latent_infections!(population, alive, strain, model.latency)
+
+    # Process recovery
+    process_recovery!(population, alive, strain, model.recovery)
+
+    # Process immunity loss
+    process_immunity_loss!(population, alive, strain, model.immunity_loss)
+
+    # Process mortality from infection
+    process_disease_mortality!(population, alive, strain, base_mortality, model.mortality, mortality_list)
+end
+
+"""
+    process_infections!(population::Population, alive::Vector{Bool}, strain::Int,
+                       transmission_rate::Float64, interactions::Vector{Float64})
+
+Process direct infections for SI/SIR models (susceptible to infected).
+"""
+function process_infections!(population::Population, alive::Vector{Bool}, strain::Int,
+    transmission_rate::Float64, interactions::Vector{Float64})
+    transmission_rate <= 0 && return
+
+    # Find infected and susceptible individuals
+    infected_indices = findall(i -> alive[i] && population[i][strain, 3], 1:length(population))
+    susceptible_indices = findall(i -> alive[i] && population[i][strain, 1], 1:length(population))
+
+    isempty(infected_indices) && return
+    isempty(susceptible_indices) && return
+
+    # Calculate infection probability for each susceptible individual
+    n_infected = length(infected_indices)
+
+    for s_idx in susceptible_indices
+        # Get the baseline infection pressure
+        infection_pressure = transmission_rate * n_infected / length(population)
+
+        # Adjust for coinfection interactions
+        for other_strain in 1:length(interactions)
+            other_strain == strain && continue
+
+            if population[s_idx][other_strain, 3]  # Individual is infected with other strain
+                infection_pressure *= interactions[other_strain]
+            end
+        end
+
+        # Apply infection
+        if rand() < min(1.0, infection_pressure)
+            population[s_idx][strain, 1] = false  # No longer susceptible
+            population[s_idx][strain, 3] = true   # Now infected
+        end
+    end
+end
+
+"""
+    process_exposures!(population::Population, alive::Vector{Bool}, strain::Int,
+                      transmission_rate::Float64, interactions::Vector{Float64})
+
+Process exposures for SEIR/SEIRS models (susceptible to exposed).
+"""
+function process_exposures!(population::Population, alive::Vector{Bool}, strain::Int,
+    transmission_rate::Float64, interactions::Vector{Float64})
+    transmission_rate <= 0 && return
+
+    # Find infected and susceptible individuals
+    infected_indices = findall(i -> alive[i] && population[i][strain, 3], 1:length(population))
+    susceptible_indices = findall(i -> alive[i] && population[i][strain, 1], 1:length(population))
+
+    isempty(infected_indices) && return
+    isempty(susceptible_indices) && return
+
+    # Calculate infection probability for each susceptible individual
+    n_infected = length(infected_indices)
+
+    for s_idx in susceptible_indices
+        # Get the baseline infection pressure
+        infection_pressure = transmission_rate * n_infected / length(population)
+
+        # Adjust for coinfection interactions
+        for other_strain in 1:length(interactions)
+            other_strain == strain && continue
+
+            if population[s_idx][other_strain, 3]  # Individual is infected with other strain
+                infection_pressure *= interactions[other_strain]
+            end
+        end
+
+        # Apply exposure
+        if rand() < min(1.0, infection_pressure)
+            population[s_idx][strain, 1] = false  # No longer susceptible
+            population[s_idx][strain, 2] = true   # Now exposed
+        end
+    end
+end
+
+"""
+    process_latent_infections!(population::Population, alive::Vector{Bool}, strain::Int, latency::Int)
+
+Process transitions from exposed to infected based on latency period.
+"""
+function process_latent_infections!(population::Population, alive::Vector{Bool}, strain::Int, latency::Int)
+    # This is a simple implementation that transitions exposed to infected with probability 1/latency
+    # A more sophisticated version might track exposure time for each individual
+
+    exposed_indices = findall(i -> alive[i] && population[i][strain, 2], 1:length(population))
+    isempty(exposed_indices) && return
+
+    transition_prob = 1.0 / latency
+
+    for e_idx in exposed_indices
+        if rand() < transition_prob
+            population[e_idx][strain, 2] = false  # No longer exposed
+            population[e_idx][strain, 3] = true   # Now infected
+        end
+    end
+end
+
+"""
+    process_recovery!(population::Population, alive::Vector{Bool}, strain::Int, recovery_rate::Float64)
+
+Process recovery from infection.
+"""
+function process_recovery!(population::Population, alive::Vector{Bool}, strain::Int, recovery_rate::Float64)
+    recovery_rate <= 0 && return
+
+    infected_indices = findall(i -> alive[i] && population[i][strain, 3], 1:length(population))
+    isempty(infected_indices) && return
+
+    for i_idx in infected_indices
+        if rand() < recovery_rate
+            population[i_idx][strain, 3] = false  # No longer infected
+            population[i_idx][strain, 4] = true   # Now recovered
+        end
+    end
+end
+
+"""
+    process_immunity_loss!(population::Population, alive::Vector{Bool}, strain::Int, immunity_loss_rate::Float64)
+
+Process loss of immunity after recovery.
+"""
+function process_immunity_loss!(population::Population, alive::Vector{Bool}, strain::Int, immunity_loss_rate::Float64)
+    immunity_loss_rate <= 0 && return
+
+    recovered_indices = findall(i -> alive[i] && population[i][strain, 4], 1:length(population))
+    isempty(recovered_indices) && return
+
+    for r_idx in recovered_indices
+        if rand() < immunity_loss_rate
+            population[r_idx][strain, 4] = false  # No longer recovered
+            population[r_idx][strain, 1] = true   # Now susceptible again
+        end
+    end
+end
+
+"""
+    process_disease_mortality!(population::Population, alive::Vector{Bool}, strain::Int,
+                              base_mortality::Float64, disease_mortality::Float64, mortality_list::Set{Int})
+
+Process additional mortality due to infection.
+"""
+function process_disease_mortality!(population::Population, alive::Vector{Bool}, strain::Int,
+    base_mortality::Float64, disease_mortality::Float64, mortality_list::Set{Int})
+    disease_mortality <= 0 && return
+
+    infected_indices = findall(i -> alive[i] && population[i][strain, 3], 1:length(population))
+    isempty(infected_indices) && return
+
+    # Calculate total mortality probability (base + disease)
+    total_mortality = base_mortality + disease_mortality
+
+    # Apply mortality
+    n_deaths = rand(Binomial(length(infected_indices), total_mortality))
+    n_deaths <= 0 && return
+
+    dead_indices = sample(infected_indices, n_deaths, replace=false)
+    union!(mortality_list, dead_indices)
+end
+
+# Backwards compatibility function
+"""
+    coinfection_simulator(;
+        initial_pop::Vector{<:AbstractMatrix{Bool}},
+        ages::Vector{Int},
+        interactions::Matrix{Float64},
+        disease_type::Vector{String},
+        base_mortality::Float64,
+        disease_mortality::Vector{Float64},
+        fecundity::Float64,
+        transmission::Vector{Float64},
+        time_steps::Int,
+        age_maturity::Int,
+        introduction::String = "simultaneous",
+        latency::Union{Vector{Int}, Nothing} = nothing,
+        recovery::Union{Vector{Float64}, Nothing} = nothing,
+        immunity_loss::Union{Vector{Float64}, Nothing} = nothing
+    ) -> Tuple{Vector{Vector{<:AbstractMatrix{Bool}}}, Vector{Vector{Int}}}
+
+Legacy interface for the coinfection simulator. Converts parameters to the new type system
+and calls the `simulate` function.
 """
 function coinfection_simulator(;
-	initial_pop::Vector{<:AbstractMatrix{Bool}},
-	ages::Vector{Int},
-	interactions::Matrix{Float64},
-	disease_type::Vector{String},
-	base_mortality::Float64,
-	disease_mortality::Vector{Float64},
-	fecundity::Float64,
-	transmission::Vector{Float64},
-	time_steps::Int,
-	age_maturity::Int,
-	introduction::String = "simultaneous",
-	latency::Union{Vector{Int}, Nothing} = nothing,
-	immunity_loss::Union{Vector{Float64}, Nothing} = nothing,
-	recovery::Union{Vector{Float64}, Nothing} = nothing,
+    initial_pop::Vector{<:AbstractMatrix{Bool}},
+    ages::Vector{Int},
+    interactions::Matrix{Float64},
+    disease_type::Vector{String},
+    base_mortality::Float64,
+    disease_mortality::Vector{Float64},
+    fecundity::Float64,
+    transmission::Vector{Float64},
+    time_steps::Int,
+    age_maturity::Int,
+    introduction::String="simultaneous",
+    latency::Union{Vector{Int},Nothing}=nothing,
+    recovery::Union{Vector{Float64},Nothing}=nothing,
+    immunity_loss::Union{Vector{Float64},Nothing}=nothing
 )
-	# Input validation
-	@assert !isempty(initial_pop) "Initial population cannot be empty"
-	@assert all(m -> size(m, 2) == 4, initial_pop) "All population matrices must have 4 columns"
-	@assert length(unique([size(m, 1) for m in initial_pop])) == 1 "All population matrices must have the same number of rows"
-	@assert all(a -> a >= 0, ages) "All ages must be 0 or greater"
+    # Convert string introduction type to symbol
+    intro_sym = if introduction == "simultaneous"
+        :simultaneous
+    elseif introduction == "random"
+        :random
+    elseif introduction == "none"
+        :none
+    else
+        throw(ArgumentError("Invalid introduction type: $introduction"))
+    end
 
-	n_strains = size(initial_pop[1], 1)
-	n_individuals = length(initial_pop)
+    # Convert disease models
+    models = Vector{DiseaseModel}(undef, length(disease_type))
+    for i in 1:length(disease_type)
+        if disease_type[i] == "si"
+            models[i] = SIModel(transmission[i], disease_mortality[i])
+        elseif disease_type[i] == "sir"
+            recovery === nothing && throw(ArgumentError("Recovery rates must be provided for SIR models"))
+            models[i] = SIRModel(transmission[i], disease_mortality[i], recovery[i])
+        elseif disease_type[i] == "seir"
+            recovery === nothing && throw(ArgumentError("Recovery rates must be provided for SEIR models"))
+            latency === nothing && throw(ArgumentError("Latency periods must be provided for SEIR models"))
+            models[i] = SEIRModel(transmission[i], disease_mortality[i], recovery[i], latency[i])
+        elseif disease_type[i] == "seirs"
+            recovery === nothing && throw(ArgumentError("Recovery rates must be provided for SEIRS models"))
+            latency === nothing && throw(ArgumentError("Latency periods must be provided for SEIRS models"))
+            immunity_loss === nothing && throw(ArgumentError("Immunity loss rates must be provided for SEIRS models"))
+            models[i] = SEIRSModel(transmission[i], disease_mortality[i], recovery[i], latency[i], immunity_loss[i])
+        else
+            throw(ArgumentError("Invalid disease type: $(disease_type[i])"))
+        end
+    end
 
-	@assert length(ages) == n_individuals "There must be an age given for every individual"
-	@assert size(interactions, 1) == n_strains && size(interactions, 2) == n_strains "The interactions matrix must have rows and columns equal to the number of strains"
-	@assert all(dt -> dt in ["si", "sir", "seir", "seirs"], disease_type) "All disease types must be one of: si, sir, seir, seirs"
-	@assert length(disease_type) == n_strains "Disease type vector length must match number of strains"
-	@assert base_mortality >= 0 && base_mortality <= 1 "Base mortality must fall between 0 and 1"
-	@assert length(disease_mortality) == n_strains "Disease mortality vector length must match number of strains"
-	@assert all(m -> m >= 0 && m <= 1, disease_mortality) "Disease mortality must fall between 0 and 1"
-	@assert all(base_mortality .+ disease_mortality .<= 1) "Base mortality and disease mortality combined must not exceed 1"
-	@assert fecundity >= 0 "Fecundity cannot be negative"
-	@assert length(transmission) == n_strains "Transmission vector length must equal number of strains"
-	@assert all(t -> t >= 0 && t <= 1, transmission) "Transmission must fall between 0 and 1"
+    # Create simulation parameters
+    params = SimulationParameters(
+        models,
+        interactions,
+        base_mortality,
+        fecundity,
+        age_maturity,
+        intro_sym,
+        time_steps
+    )
 
-	# Additional validation for specific disease models
-	if any(dt -> dt in ["sir", "seir", "seirs"], disease_type)
-		@assert !isnothing(recovery) "Recovery rates must be provided for SIR/SEIR/SEIRS models"
-		@assert length(recovery) == n_strains "Recovery vector length must equal the number of strains"
-		@assert all(r -> r >= 0 && r <= 1, recovery) "All recovery values must fall between 0 and 1"
+    # Create initial population
+    initial_population = Population(initial_pop, ages)
 
-		if any(dt -> dt in ["seir", "seirs"], disease_type)
-			@assert !isnothing(latency) "Latency periods must be provided for SEIR/SEIRS models"
-			@assert length(latency) == n_strains "Latency vector length must equal the number of strains"
-			@assert all(l -> l > 0, latency) "Latency in days must be greater than 0"
+    # Run simulation
+    result_pop, result_ages = simulate(initial_population, params)
 
-			if any(dt -> dt == "seirs", disease_type)
-				@assert !isnothing(immunity_loss) "Immunity loss rates must be provided for SEIRS models"
-				@assert length(immunity_loss) == n_strains "Immunity loss vector length must equal number of strains"
-				@assert all(il -> il >= 0 && il <= 1, immunity_loss) "All immunity loss values must be between 0 and 1"
-			end
-		end
-	end
+    # Convert results back to legacy format
+    legacy_pop = Vector{Vector{eltype(initial_pop)}}(undef, time_steps)
+    for t in 1:time_steps
+        legacy_pop[t] = [ind.state for ind in result_pop[t]]
+    end
 
-	@assert time_steps >= 1 "Time steps must be 1 or greater"
-	@assert introduction in ["simultaneous", "random", "none"] "Introduction of viruses must be none, simultaneous or random"
-	@assert age_maturity > 0 "Age of maturity must be greater than 0"
-
-	# Strain introduction timing
-	if introduction == "simultaneous"
-		intro_step = ones(Int, n_strains)
-	elseif introduction == "random"
-		intro_step = rand(1:time_steps, n_strains)
-	elseif introduction == "none"
-		intro_step = zeros(Int, n_strains)
-	else
-		error("Invalid introduction type: $introduction")
-	end
-
-	# Initialize results
-	result_pop = Vector{Vector{eltype(initial_pop)}}(undef, time_steps)
-	result_pop[1] = copy.(initial_pop)
-	result_ages = Vector{Vector{Int}}(undef, time_steps)
-	result_ages[1] = copy(ages)
-
-	# Time loop
-	for t in 1:(time_steps-1)
-		current_pop = deepcopy(result_pop[t])
-		current_ages = deepcopy(result_ages[t])
-
-		# Introduce infections
-		if any(intro_step .== t)
-			infected_indices = sample(1:length(current_pop), sum(intro_step .== t), replace = false)
-			for (i, idx) in enumerate(infected_indices)
-				strain = findall(intro_step .== t)[i]
-				current_pop[idx][strain, 1] = false
-				current_pop[idx][strain, 3] = true
-			end
-		end
-
-		# Breeding
-		breeding_age = current_ages .>= age_maturity
-		number_births = rand(Poisson(sum(breeding_age) * fecundity))
-		if number_births > 0
-			new_juvs = [falses(n_strains, 4) for _ in 1:number_births]
-			for m in new_juvs
-				m[:, 1] .= true
-			end
-			append!(current_pop, new_juvs)
-			append!(current_ages, zeros(Int, number_births))
-		end
-
-		# For each strain, detect whether there are any infected/exposed
-		# This lets us save time computationally when no infection is active
-		active_infections = if isempty(current_pop)
-			falses(n_strains)
-		else
-			infection_status = map(m -> m[:, [2, 3]], current_pop)
-			sum_matrix = reduce(hcat, infection_status)
-			sum_vec = vec(sum(sum_matrix, dims = 2))
-			sum_vec .> 0
-		end
-
-		# Death tracker
-		dead_indices = Set{Int}()
-
-		# Process each strain
-		for strain in 1:n_strains
-			# Death of uninfected individuals
-			uninfected = findall(m -> any(view(m, strain, [1, 2, 4])), current_pop)
-			uninfected_death = isempty(uninfected) ? 0 : rand(Binomial(length(uninfected), base_mortality))
-			if uninfected_death > 0
-				dead = sample(uninfected, uninfected_death; replace = false)
-				union!(dead_indices, dead)
-			end
-
-			# Skip if no active infections for this strain
-			!active_infections[strain] && continue
-
-			# Get alive individuals
-			alive = [i ∉ dead_indices for i in 1:length(current_pop)]
-
-			# Process based on disease type
-			if disease_type[strain] == "si"
-				handle_si_disease(
-					current_pop, alive, strain, transmission[strain], interactions[strain, :],
-					base_mortality, disease_mortality[strain], dead_indices,
-				)
-			elseif disease_type[strain] == "sir"
-				handle_sir_disease(
-					current_pop, alive, strain, transmission[strain], interactions[strain, :],
-					base_mortality, disease_mortality[strain], recovery[strain], dead_indices,
-				)
-			elseif disease_type[strain] == "seir"
-				handle_seir_disease(
-					current_pop, alive, strain, transmission[strain], interactions[strain, :],
-					base_mortality, disease_mortality[strain], recovery[strain], latency[strain], dead_indices,
-				)
-			elseif disease_type[strain] == "seirs"
-				handle_seirs_disease(
-					current_pop, alive, strain, transmission[strain], interactions[strain, :],
-					base_mortality, disease_mortality[strain], recovery[strain], latency[strain],
-					immunity_loss[strain], dead_indices,
-				)
-			end
-		end
-
-		# Final cleanup after all mortality:
-		alive_mask = [i ∉ dead_indices for i in 1:length(current_pop)]
-		current_pop = current_pop[alive_mask]
-		current_ages = current_ages[alive_mask]
-
-		# Age surviving individuals
-		current_ages .+= 1
-		result_pop[t+1] = current_pop
-		result_ages[t+1] = current_ages
-	end
-
-	return (result_pop, result_ages)
+    return (legacy_pop, result_ages)
 end

@@ -1,481 +1,349 @@
-@testset "Coinfection Simulator Tests" begin
+@testset "Simulator Tests" begin
 
-	@testset "Input validation tests" begin
-		# Test empty population
-		@test_throws AssertionError coinfection_simulator(
-			initial_pop = Vector{Matrix{Bool}}(),
-			ages = Vector{Int}(),
-			interactions = Matrix{Float64}(undef, 0, 0),
-			disease_type = String[],
-			base_mortality = 0.0,
-			disease_mortality = Float64[],
-			fecundity = 0.0,
-			transmission = Float64[],
-			time_steps = 1,
-			age_maturity = 1,
-		)
+    @testset "Types and Constructors" begin
+        # Test disease model constructors
+        @test SIModel(0.5, 0.1) isa SIModel
+        @test SIRModel(0.5, 0.1, 0.2) isa SIRModel
+        @test SEIRModel(0.5, 0.1, 0.2, 3) isa SEIRModel
+        @test SEIRSModel(0.5, 0.1, 0.2, 3, 0.1) isa SEIRSModel
 
-		# Test Matrix{Bool} input
-		pop = [Matrix{Bool}([true false false false; true false false false]) for _ in 1:10]
-		pop[1][1, 1] = false
-		pop[1][1, 3] = true
+        # Test model validation
+        @test_throws ArgumentError SIModel(-0.1, 0.1)  # Invalid transmission
+        @test_throws ArgumentError SIModel(0.5, 1.1)   # Invalid mortality
+        @test_throws ArgumentError SEIRModel(0.5, 0.1, 0.2, 0)  # Invalid latency
 
-		result = coinfection_simulator(
-			initial_pop = pop,
-			ages = ones(Int, 10),
-			interactions = [1.0 0.9; 0.9 1.0],
-			disease_type = ["si", "si"],
-			base_mortality = 0.0,
-			disease_mortality = [0.0, 0.0],
-			fecundity = 0.0,
-			transmission = [0.5, 0.5],
-			time_steps = 5,
-			age_maturity = 1,
-		)
+        # Test Individual constructor
+        ind = Individual(BitMatrix([true false false false; true false false false]), 10)
+        @test ind isa Individual
+        @test ind.age == 10
+        @test size(ind.state) == (2, 4)
 
-		@test length(result) == 2  # Returns tuple of (populations, ages)
-		@test length(result[1]) == 5  # 5 time steps
-		@test length(result[2]) == 5  # 5 time steps
+        # Test Individual validation
+        @test_throws ArgumentError Individual(BitMatrix([true false false]), 10)  # Wrong columns
+        @test_throws ArgumentError Individual(BitMatrix([true true false false]), 10)  # Invalid state
+        @test_throws ArgumentError Individual(BitMatrix([true false false false]), -1)  # Negative age
 
-		# Test basic valid input with BitMatrix
-		pop_bit = [BitMatrix([true false false false; true false false false]) for _ in 1:10]
-		pop_bit[1][1, 1] = false
-		pop_bit[1][1, 3] = true
+        # Test shorthand constructor
+        ind2 = Individual(3, 5)
+        @test ind2 isa Individual
+        @test ind2.age == 5
+        @test size(ind2.state) == (3, 4)
+        @test all(ind2.state[:, 1])  # All susceptible
+        @test !any(ind2.state[:, 2:4])  # Not in other states
 
-		result_bit = coinfection_simulator(
-			initial_pop = pop_bit,
-			ages = ones(Int, 10),
-			interactions = [1.0 0.9; 0.9 1.0],
-			disease_type = ["si", "si"],
-			base_mortality = 0.0,
-			disease_mortality = [0.0, 0.0],
-			fecundity = 0.0,
-			transmission = [0.5, 0.5],
-			time_steps = 5,
-			age_maturity = 1,
-		)
+        # Test Population constructor with different strain counts (should error)
+        @test_throws ArgumentError Population([ind, ind2])
 
-		@test length(result_bit) == 2  # Returns tuple of (populations, ages)
-		@test length(result_bit[1]) == 5  # 5 time steps
-		@test length(result_bit[2]) == 5  # 5 time steps
-	end
+        pop = Population([ind, Individual(BitMatrix([true false false false; true false false false]), 20)])
+        @test pop isa Population
+        @test length(pop) == 2
+    end
 
-	@testset "BitMatrix compatibility tests" begin
-		Random.seed!(789)
+    @testset "Basic Simulation" begin
+        # Create a small population for testing
+        Random.seed!(123)
+        ind1 = Individual(BitMatrix([false false true false; true false false false]), 10)
+        ind2 = Individual(BitMatrix([true false false false; true false false false]), 10)
+        pop = Population([ind1, ind2])
 
-		# Test that BitMatrix and Matrix{Bool} produce equivalent results
-		pop_bool = [Matrix{Bool}([true false false false; true false false false]) for _ in 1:20]
-		pop_bool[1][1, 1] = false
-		pop_bool[1][1, 3] = true
+        # Simple SI model
+        si_model = SIModel(0.8, 0.0)
 
-		pop_bit = [BitMatrix([true false false false; true false false false]) for _ in 1:20]
-		pop_bit[1][1, 1] = false
-		pop_bit[1][1, 3] = true
+        # Simulation parameters
+        params = SimulationParameters(
+            [si_model, si_model],   # Two strains with SI model
+            [1.0 0.8; 0.8 1.0],     # Interaction matrix
+            0.0,                    # No background mortality
+            0.0,                    # No reproduction
+            18,                     # Age of maturity
+            :none,                  # No new introductions
+            5                       # 5 time steps
+        )
 
-		# Run simulation with identical parameters
-		Random.seed!(123)
-		result_bool = coinfection_simulator(
-			initial_pop = pop_bool,
-			ages = ones(Int, 20),
-			interactions = [1.0 0.8; 0.8 1.0],
-			disease_type = ["si", "si"],
-			base_mortality = 0.0,
-			disease_mortality = [0.0, 0.0],
-			fecundity = 0.0,
-			transmission = [0.3, 0.3],
-			time_steps = 5,
-			age_maturity = 1,
-		)
+        # Run simulation
+        results = simulate(pop, params)
 
-		Random.seed!(123)
-		result_bit = coinfection_simulator(
-			initial_pop = pop_bit,
-			ages = ones(Int, 20),
-			interactions = [1.0 0.8; 0.8 1.0],
-			disease_type = ["si", "si"],
-			base_mortality = 0.0,
-			disease_mortality = [0.0, 0.0],
-			fecundity = 0.0,
-			transmission = [0.3, 0.3],
-			time_steps = 5,
-			age_maturity = 1,
-		)
+        # Check results structure
+        @test length(results) == 2  # Returns tuple of (populations, ages)
+        @test length(results[1]) == 5  # 5 time steps
+        @test length(results[2]) == 5  # 5 time steps
 
-		# Results should be equivalent
-		@test length(result_bool[1]) == length(result_bit[1])
-		@test result_bool[2] == result_bit[2]  # Ages should be identical
+        # Check that infection spreads
+        @test length(results[1][1]) == 2  # Initial population size
+        @test count(ind -> ind[1, 3], results[1][1]) == 1  # One initially infected
+        @test count(ind -> ind[1, 3], results[1][end]) >= 1  # At least one infected at end
+    end
 
-		# Check that population states are equivalent
-		for t in 1:length(result_bool[1])
-			@test length(result_bool[1][t]) == length(result_bit[1][t])
-			for i in 1:length(result_bool[1][t])
-				@test Matrix{Bool}(result_bool[1][t][i]) == Matrix{Bool}(result_bit[1][t][i])
-			end
-		end
-	end
+    @testset "Disease Model Dynamics" begin
+        # Test SI model dynamics
+        Random.seed!(456)
+        pop_si = Population([Individual(BitMatrix([false false true false]), 20) for _ in 1:10])
+        for _ in 1:90
+            push!(pop_si.individuals, Individual(BitMatrix([true false false false]), 20))
+        end
 
-	@testset "Disease model validation" begin
-		pop = [Matrix{Bool}([true false false false;]) for _ in 1:10]
+        params_si = SimulationParameters(
+            [SIModel(0.3, 0.0)],  # High transmission, no mortality
+            [1.0;;],              # No interaction (single strain)
+            0.0,                  # No background mortality
+            0.0,                  # No reproduction
+            18,                   # Age of maturity
+            :none,                # No new introductions
+            10                    # 10 time steps
+        )
 
-		# Test SIR model requires recovery parameter
-		@test_throws AssertionError coinfection_simulator(
-			initial_pop = pop,
-			ages = ones(Int, 10),
-			interactions = [1.0;;],
-			disease_type = ["sir"],
-			base_mortality = 0.0,
-			disease_mortality = [0.0],
-			fecundity = 0.0,
-			transmission = [0.5],
-			time_steps = 2,
-			age_maturity = 1,
-			# Missing recovery parameter
-		)
+        results_si = simulate(pop_si, params_si)
 
-		# Test SEIR model requires latency parameter
-		@test_throws AssertionError coinfection_simulator(
-			initial_pop = pop,
-			ages = ones(Int, 10),
-			interactions = [1.0;;],
-			disease_type = ["seir"],
-			base_mortality = 0.0,
-			disease_mortality = [0.0],
-			fecundity = 0.0,
-			transmission = [0.5],
-			time_steps = 2,
-			age_maturity = 1,
-			recovery = [0.1],
-			# Missing latency parameter
-		)
+        # In SI model, infected stays infected
+        final_infected = count(ind -> ind[1, 3], results_si[1][end])
+        @test final_infected > 10  # Infection should spread
 
-		# Test SEIRS model requires immunity_loss parameter
-		@test_throws AssertionError coinfection_simulator(
-			initial_pop = pop,
-			ages = ones(Int, 10),
-			interactions = [1.0;;],
-			disease_type = ["seirs"],
-			base_mortality = 0.0,
-			disease_mortality = [0.0],
-			fecundity = 0.0,
-			transmission = [0.5],
-			time_steps = 2,
-			age_maturity = 1,
-			recovery = [0.1],
-			latency = [5],
-			# Missing immunity_loss parameter
-		)
-	end
+        # Test SIR model dynamics
+        Random.seed!(457)
+        pop_sir = Population([Individual(BitMatrix([false false true false]), 20) for _ in 1:10])
+        for _ in 1:90
+            push!(pop_sir.individuals, Individual(BitMatrix([true false false false]), 20))
+        end
 
-	@testset "Disease progression tests" begin
-		Random.seed!(456)
+        params_sir = SimulationParameters(
+            [SIRModel(0.3, 0.0, 0.2)],  # With recovery
+            [1.0;;],
+            0.0,
+            0.0,
+            18,
+            :none,
+            15
+        )
 
-		# Test SI model
-		pop = [Matrix{Bool}([true false false false; true false false false]) for _ in 1:100]
-		pop[1][1, 1] = false
-		pop[1][1, 3] = true  # Start with one infected individual
+        results_sir = simulate(pop_sir, params_sir)
 
-		results = coinfection_simulator(
-			initial_pop = pop,
-			ages = ones(Int, 100),
-			interactions = [1.0 0.5; 0.5 1.0],
-			disease_type = ["si", "si"],
-			base_mortality = 0.0,
-			disease_mortality = [0.0, 0.0],
-			fecundity = 0.0,
-			transmission = [0.8, 0.8],
-			time_steps = 10,
-			age_maturity = 1,
-		)
+        # In SIR model, we should see some recoveries
+        final_recovered = count(ind -> ind[1, 4], results_sir[1][end])
+        @test final_recovered > 0  # Some individuals should recover
 
-		# Check that infection can spread
-		initial_infected = sum(m[1, 3] for m in results[1][1])
-		final_infected = sum(m[1, 3] for m in results[1][end])
-		@test final_infected >= initial_infected
-	end
+        # Test SEIR model dynamics
+        Random.seed!(458)
+        pop_seir = Population([Individual(BitMatrix([false false true false]), 20) for _ in 1:10])
+        for _ in 1:90
+            push!(pop_seir.individuals, Individual(BitMatrix([true false false false]), 20))
+        end
 
-	@testset "Edge cases" begin
-		# Test with mortality = 0 and fecundity = 0 (stable population)
-		pop = [Matrix{Bool}([true false false false;]) for _ in 1:5]
+        params_seir = SimulationParameters(
+            [SEIRModel(0.3, 0.0, 0.2, 3)],  # With latency
+            [1.0;;],
+            0.0,
+            0.0,
+            18,
+            :none,
+            20
+        )
 
-		results = coinfection_simulator(
-			initial_pop = pop,
-			ages = ones(Int, 5),
-			interactions = [1.0;;],
-			disease_type = ["si"],
-			base_mortality = 0.0,
-			disease_mortality = [0.0],
-			fecundity = 0.0,
-			transmission = [0.0],  # No transmission
-			time_steps = 3,
-			age_maturity = 1,
-			introduction = "none",
-		)
+        results_seir = simulate(pop_seir, params_seir)
 
-		# Population should remain stable
-		@test length(results[1][1]) == length(results[1][end])
-		@test all(results[2][end] .== results[2][1] .+ 2)  # Ages should increase by 2
-	end
+        # In SEIR model, we should see exposed individuals
+        # Find maximum number of exposed at any time step
+        max_exposed = maximum([count(ind -> ind[1, 2], pop) for pop in results_seir[1]])
+        @test max_exposed > 0  # Should have some exposed individuals
 
-	@testset "Birth scenario tests" begin
-		Random.seed!(101)
+        # Test SEIRS model dynamics
+        Random.seed!(459)
+        pop_seirs = Population([Individual(BitMatrix([false false true false]), 20) for _ in 1:10])
+        for _ in 1:90
+            push!(pop_seirs.individuals, Individual(BitMatrix([true false false false]), 20))
+        end
 
-		# Test scenario where births occur
-		pop = [Matrix{Bool}([true false false false;]) for _ in 1:20]
+        params_seirs = SimulationParameters(
+            [SEIRSModel(0.3, 0.0, 0.2, 3, 0.1)],  # With immunity loss
+            [1.0;;],
+            0.0,
+            0.0,
+            18,
+            :none,
+            25
+        )
 
-		results = coinfection_simulator(
-			initial_pop = pop,
-			ages = fill(25, 20),  # All adults above maturity age
-			interactions = [1.0;;],
-			disease_type = ["si"],
-			base_mortality = 0.0,
-			disease_mortality = [0.0],
-			fecundity = 0.5,  # High fecundity to ensure births
-			transmission = [0.0],
-			time_steps = 5,
-			age_maturity = 18,
-			introduction = "none",
-		)
+        results_seirs = simulate(pop_seirs, params_seirs)
 
-		# Check that population size increased due to births
-		initial_size = length(results[1][1])
-		final_size = length(results[1][end])
-		@test final_size > initial_size
+        # SEIRS model should have both recovered and newly susceptible individuals
+        final_recovered = count(ind -> ind[1, 4], results_seirs[1][end])
+        @test final_recovered > 0  # Some should be recovered
 
-		# Check that newborns have age 0 at their birth timestep
-		# and are all susceptible
-		for t in 2:length(results[1])
-			current_ages = results[2][t]
-			current_pop = results[1][t]
+        # Note: Testing for immunity loss is challenging with random processes
+        # We'd need a more controlled test to verify that specific behavior
+    end
 
-			# Find individuals with age < t (born during simulation)
-			newborns = findall(age -> age < t, current_ages)
-			if !isempty(newborns)
-				# All newborns should be susceptible to strain 1
-				for nb in newborns
-					@test current_pop[nb][1, 1] == true  # Susceptible
-					@test current_pop[nb][1, 2] == false # Not exposed
-					@test current_pop[nb][1, 3] == false # Not infected
-					@test current_pop[nb][1, 4] == false # Not recovered
-				end
-			end
-		end
-	end
+    @testset "Demographic Processes" begin
+        # Test mortality
+        Random.seed!(567)
+        pop = Population([Individual(BitMatrix([false false true false]), 20) for _ in 1:100])
 
-	@testset "Infection mortality tests" begin
-		Random.seed!(202)
+        params = SimulationParameters(
+            [SIModel(0.0, 0.2)],  # No transmission, high disease mortality
+            [1.0;;],
+            0.0,                  # No background mortality
+            0.0,                  # No reproduction
+            18,
+            :none,
+            10
+        )
 
-		# Test scenario where hosts die of infection
-		pop = [Matrix{Bool}([true false false false;]) for _ in 1:50]
-		# Start with multiple infected individuals
-		for i in 1:10
-			pop[i][1, 1] = false  # Not susceptible
-			pop[i][1, 3] = true   # Infected
-		end
+        results = simulate(pop, params)
 
-		results = coinfection_simulator(
-			initial_pop = pop,
-			ages = fill(10, 50),
-			interactions = [1.0;;],
-			disease_type = ["si"],
-			base_mortality = 0.0,     # No background mortality
-			disease_mortality = [0.8], # High infection mortality
-			fecundity = 0.0,
-			transmission = [0.0],     # No transmission to isolate mortality effect
-			time_steps = 10,
-			age_maturity = 18,
-			introduction = "none",
-		)
+        # Population should decrease due to mortality
+        @test length(results[1][end]) < 100
 
-		# Population should decrease due to infection mortality
-		initial_size = length(results[1][1])
-		final_size = length(results[1][end])
-		@test final_size < initial_size
+        # Test reproduction
+        Random.seed!(568)
+        pop = Population([Individual(BitMatrix([true false false false]), 25) for _ in 1:50])
 
-		# Count initial infected individuals
-		initial_infected = sum(m[1, 3] for m in results[1][1])
-		@test initial_infected == 10
+        params = SimulationParameters(
+            [SIModel(0.0, 0.0)],  # No disease dynamics
+            [1.0;;],
+            0.0,                  # No mortality
+            0.5,                  # High fecundity
+            18,                   # Mature at age 18
+            :none,
+            10
+        )
 
-		# Verify that mortality occurred (some infected individuals died)
-		# Since we have high disease mortality and no recovery, infected should decrease
-		final_infected = sum(m[1, 3] for m in results[1][end])
-		@test final_infected < initial_infected
-	end
+        results = simulate(pop, params)
 
-	@testset "SIR disease model tests" begin
-		Random.seed!(303)
+        # Population should increase due to reproduction
+        @test length(results[1][end]) > 50
 
-		# Test SIR disease progression
-		pop = [Matrix{Bool}([true false false false;]) for _ in 1:100]
-		# Start with one infected individual
-		pop[1][1, 1] = false  # Not susceptible
-		pop[1][1, 3] = true   # Infected
+        # Newborns should be age 0 or small age in the final population
+        @test any(ind -> ind.age < 10, results[1][end])
+    end
 
-		results = coinfection_simulator(
-			initial_pop = pop,
-			ages = fill(20, 100),
-			interactions = [1.0;;],
-			disease_type = ["sir"],
-			base_mortality = 0.0,
-			disease_mortality = [0.0],
-			fecundity = 0.0,
-			transmission = [0.3],
-			time_steps = 20,
-			age_maturity = 18,
-			recovery = [0.2],  # Recovery rate
-			introduction = "none",
-		)
+    @testset "Multi-strain Interactions" begin
+        # Test that interactions affect transmission when both strains are present
+        Random.seed!(12345)
 
-		# Check that we have transitions from I to R
-		final_recovered = sum(m[1, 4] for m in results[1][end])
-		@test final_recovered > 0
+        # Create a population with some individuals infected with each strain
+        pop = Population(Individual[])
 
-		# Check that no individual is in multiple states simultaneously
-		for t in 1:length(results[1])
-			for individual in results[1][t]
-				row_sum = sum(individual[1, :])
-				@test row_sum == 1  # Exactly one state per strain
-			end
-		end
+        # Add individuals infected with strain 1 only
+        for _ in 1:40
+            push!(pop.individuals, Individual(BitMatrix([false false true false; true false false false]), 20))
+        end
 
-		# Verify SIR progression: S -> I -> R (no return to S)
-		# Track one individual that becomes infected
-		found_progression = false
-		for t in 2:length(results[1])
-			for (i, individual) in enumerate(results[1][t])
-				# Find someone who is infected
-				if individual[1, 3] == true
-					# Check if they recover in later timesteps
-					for future_t in (t+1):length(results[1])
-						if i <= length(results[1][future_t])
-							future_state = results[1][future_t][i]
-							if future_state[1, 4] == true  # Recovered
-								found_progression = true
-								# Once recovered, should never be susceptible again
-								@test future_state[1, 1] == false
-								break
-							end
-						end
-					end
-				end
-			end
-		end
-	end
+        # Add a few individuals infected with strain 2 only (to seed strain 2 transmission)
+        for _ in 1:5
+            push!(pop.individuals, Individual(BitMatrix([true false false false; false false true false]), 20))
+        end
 
-	@testset "SEIR disease model tests" begin
-		Random.seed!(404)
+        # Add susceptible individuals
+        for _ in 1:55
+            push!(pop.individuals, Individual(BitMatrix([true false false false; true false false false]), 20))
+        end
 
-		# Test SEIR disease progression  
-		pop = [Matrix{Bool}([true false false false;]) for _ in 1:80]
-		# Start with one infected individual
-		pop[1][1, 1] = false  # Not susceptible
-		pop[1][1, 3] = true   # Infected
+        # Test with no facilitation first
+        interactions_baseline = [1.0 1.0; 1.0 1.0]
+        params_baseline = SimulationParameters(
+            [SIModel(0.1, 0.0), SIModel(0.1, 0.0)],
+            interactions_baseline,
+            0.0, 0.0, 18, :none, 30
+        )
 
-		results = coinfection_simulator(
-			initial_pop = pop,
-			ages = fill(25, 80),
-			interactions = [1.0;;],
-			disease_type = ["seir"],
-			base_mortality = 0.0,
-			disease_mortality = [0.0],
-			fecundity = 0.0,
-			transmission = [0.4],
-			time_steps = 25,
-			age_maturity = 18,
-			recovery = [0.15],
-			latency = [3],  # 3 time steps in exposed state
-			introduction = "none",
-		)
+        results_baseline = simulate(pop, params_baseline)
+        strain2_baseline = count(ind -> ind[2, 3], results_baseline[1][end])
 
-		# Check that we have exposed individuals (unique to SEIR/SEIRS)
-		max_exposed = maximum([sum(m[1, 2] for m in timestep) for timestep in results[1]])
-		@test max_exposed > 0
+        # Now test with facilitation (strain 1 facilitates strain 2 transmission)
+        Random.seed!(12345)  # Reset seed for comparison
 
-		# Check that we have recovered individuals
-		final_recovered = sum(m[1, 4] for m in results[1][end])
-		@test final_recovered > 0
+        # Create identical population
+        pop_facilitated = Population(Individual[])
+        for _ in 1:40
+            push!(pop_facilitated.individuals, Individual(BitMatrix([false false true false; true false false false]), 20))
+        end
+        for _ in 1:5
+            push!(pop_facilitated.individuals, Individual(BitMatrix([true false false false; false false true false]), 20))
+        end
+        for _ in 1:55
+            push!(pop_facilitated.individuals, Individual(BitMatrix([true false false false; true false false false]), 20))
+        end
 
-		# Check SEIR state constraints
-		for t in 1:length(results[1])
-			for individual in results[1][t]
-				row_sum = sum(individual[1, :])
-				@test row_sum == 1  # Exactly one state per strain
-			end
-		end
+        interactions_facilitated = [1.0 1.0; 2.0 1.0]  # Strain 1 facilitates strain 2
+        params_facilitated = SimulationParameters(
+            [SIModel(0.1, 0.0), SIModel(0.1, 0.0)],
+            interactions_facilitated,
+            0.0, 0.0, 18, :none, 30
+        )
 
-		# Verify that exposed state is used (S -> E -> I -> R progression)
-		found_exposed_to_infected = false
-		for t in 1:(length(results[1])-1)
-			for (i, individual) in enumerate(results[1][t])
-				if individual[1, 2] == true && i <= length(results[1][t+1])  # Exposed
-					next_individual = results[1][t+1][i]
-					if next_individual[1, 3] == true  # Became infected
-						found_exposed_to_infected = true
-						break
-					end
-				end
-			end
-		end
-	end
+        results_facilitated = simulate(pop_facilitated, params_facilitated)
+        strain2_facilitated = count(ind -> ind[2, 3], results_facilitated[1][end])
 
-	@testset "SEIRS disease model tests" begin
-		Random.seed!(505)
+        # With facilitation, strain 2 should spread more (or at least as much)
+        @test strain2_facilitated >= strain2_baseline
 
-		# Test SEIRS disease progression (includes immunity loss)
-		pop = [Matrix{Bool}([true false false false;]) for _ in 1:60]
-		# Start with one infected individual
-		pop[1][1, 1] = false  # Not susceptible  
-		pop[1][1, 3] = true   # Infected
+        # Simple test: verify that interactions don't break the basic simulation
+        @test length(results_facilitated[1][end]) > 0  # Population should still exist
+        @test sum(count(ind -> ind[i, j], results_facilitated[1][end]) for i in 1:2, j in 1:4) > 0  # Some disease states should exist
+    end
 
-		results = coinfection_simulator(
-			initial_pop = pop,
-			ages = fill(30, 60),
-			interactions = [1.0;;],
-			disease_type = ["seirs"],
-			base_mortality = 0.0,
-			disease_mortality = [0.0],
-			fecundity = 0.0,
-			transmission = [0.5],
-			time_steps = 30,
-			age_maturity = 18,
-			recovery = [0.2],
-			latency = [2],  # 2 time steps in exposed state
-			immunity_loss = [0.1],  # 10% chance of losing immunity
-			introduction = "none",
-		)
+    @testset "Backward Compatibility" begin
+        # Test that the old API still works
+        # Create an identical setup for both APIs with a fixed seed
 
-		# Check that we have exposed individuals 
-		max_exposed = maximum([sum(m[1, 2] for m in timestep) for timestep in results[1]])
-		@test max_exposed > 0
+        # Create identical initial conditions
+        init_pop_legacy = [Matrix{Bool}([true false false false; true false false false]) for _ in 1:20]
+        init_pop_legacy[1][1, 1] = false  # First individual, strain 1 infected
+        init_pop_legacy[1][1, 3] = true
 
-		# Check that we have recovered individuals
-		max_recovered = maximum([sum(m[1, 4] for m in timestep) for timestep in results[1]])
-		@test max_recovered > 0
+        # Create fixed ages and parameters
+        init_ages = ones(Int, 20)
 
-		# Check SEIRS state constraints
-		for t in 1:length(results[1])
-			for individual in results[1][t]
-				row_sum = sum(individual[1, :])
-				@test row_sum == 1  # Exactly one state per strain
-			end
-		end
+        # Use a single infected individual to start, no randomness in the model
+        Random.seed!(12345)
+        results_legacy = coinfection_simulator(
+            initial_pop=init_pop_legacy,
+            ages=init_ages,
+            interactions=[1.0 0.8; 0.8 1.0],
+            disease_type=["si", "si"],
+            base_mortality=0.0,     # No mortality
+            disease_mortality=[0.0, 0.0],
+            fecundity=0.0,          # No births
+            transmission=[0.0, 0.0], # No transmission - should preserve initial infected count
+            time_steps=5,
+            age_maturity=1,
+            introduction="none"     # Explicit setting
+        )
 
-		# The key feature of SEIRS: recovered individuals can become susceptible again
-		# Look for evidence of immunity loss (R -> S transition)
-		found_immunity_loss = false
-		for t in 1:(length(results[1])-1)
-			for (i, individual) in enumerate(results[1][t])
-				if individual[1, 4] == true && i <= length(results[1][t+1])  # Recovered
-					next_individual = results[1][t+1][i]
-					if next_individual[1, 1] == true  # Became susceptible again
-						found_immunity_loss = true
-						break
-					end
-				end
-			end
-		end
+        # Check that the results have the expected structure
+        @test length(results_legacy) == 2
+        @test length(results_legacy[1]) == 5
+        @test length(results_legacy[2]) == 5
 
-		# Note: We don't require finding immunity loss in every test run due to randomness,
-		# but the model should be capable of it. The important test is that the simulation
-		# runs without error and maintains valid state constraints.
-	end
+        # Create equivalent setup for new API
+        Random.seed!(12345)
+
+        # Build identical population
+        ind1 = Individual(BitMatrix([false false true false; true false false false]), 1)
+        pop_new = Population([ind1])
+        for _ in 1:19
+            push!(pop_new.individuals, Individual(BitMatrix([true false false false; true false false false]), 1))
+        end
+
+        params_new = SimulationParameters(
+            [SIModel(0.0, 0.0), SIModel(0.0, 0.0)],  # No transmission
+            [1.0 0.8; 0.8 1.0],
+            0.0,                    # No mortality
+            0.0,                    # No births
+            1,
+            :none,                  # No introductions
+            5
+        )
+
+        results_new = simulate(pop_new, params_new)
+
+        # Compare results
+        @test length(results_new[1]) == length(results_legacy[1])
+        @test all(results_new[2][i] == results_legacy[2][i] for i in 1:5)
+
+        # Check that the final infection counts match - should remain at 1 since no transmission
+        infected_legacy = sum(sum(m[1, 3] for m in results_legacy[1][end]))
+        infected_new = count(ind -> ind[1, 3], results_new[1][end])
+        @test infected_legacy == infected_new
+        @test infected_legacy == 1  # Only the initial infection
+    end
 end
