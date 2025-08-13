@@ -13,6 +13,7 @@ using DataFrames
 include("types.jl")
 
 # Core functionality
+include("simulation_helpers.jl")
 include("simulator.jl")
 include("sampling.jl")
 include("data_prep.jl")
@@ -24,7 +25,6 @@ export Population, Individual, SimulationParameters, SamplingParameters
 # Export main functions
 export simulate, sample_populations, create_interaction_matrix
 
-# Convenience re-exports of types and functions with legacy names for backward compatibility
-export coinfection_simulator, virtual_ecologist_sample, prep_interaction_matrix
+
 
 end # module CoinfectionSimulator

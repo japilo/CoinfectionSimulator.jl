@@ -133,41 +133,5 @@
         @test result_fp[1, 1] || result_fp[1, 2]
     end
 
-    @testset "Backward Compatibility" begin
-        # Test the legacy interface with deterministic setup
-        # Create a controlled test case with known infected individuals
-        legacy_pop = [
-            # Timestep 1: One individual infected with strain 1
-            [BitMatrix([false false true false; true false false false])],
-            # Timestep 2: One individual infected with strain 2
-            [BitMatrix([true false false false; false false true false])]
-        ]
 
-        # With 100% sampling and no errors, we should detect exactly what's present
-        legacy_result = virtual_ecologist_sample(
-            virtual_population=legacy_pop,
-            proportion_sampled=1.0,
-            false_positive_rate=0.0,
-            false_negative_rate=0.0
-        )
-
-        @test size(legacy_result) == (2, 2)
-        # In timestep 1, strain 1 is present, strain 2 is absent
-        @test legacy_result[1, 1] == true
-        @test legacy_result[1, 2] == false
-        # In timestep 2, strain 1 is absent, strain 2 is present
-        @test legacy_result[2, 1] == false
-        @test legacy_result[2, 2] == true
-
-        # Now test the same with the new API
-        new_pop = [
-            Population([Individual(BitMatrix([false false true false; true false false false]), 1)]),
-            Population([Individual(BitMatrix([true false false false; false false true false]), 1)])
-        ]
-
-        new_result = sample_populations(new_pop, SamplingParameters(1.0, 0.0, 0.0))
-
-        # Results should be identical
-        @test legacy_result == new_result
-    end
 end

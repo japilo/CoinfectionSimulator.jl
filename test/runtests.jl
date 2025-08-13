@@ -23,18 +23,20 @@ Random.seed!(123)
 
         # Check core functions are defined
         @test isdefined(CoinfectionSimulator, :simulate)
-        @test isdefined(CoinfectionSimulator, :sample)
+        @test isdefined(CoinfectionSimulator, :sample_populations)
         @test isdefined(CoinfectionSimulator, :create_interaction_matrix)
 
-        # Check backward compatibility exports
-        @test isdefined(CoinfectionSimulator, :coinfection_simulator)
-        @test isdefined(CoinfectionSimulator, :virtual_ecologist_sample)
-        @test isdefined(CoinfectionSimulator, :prep_interaction_matrix)
+
+
+        # Check that internal helper functions are available
+        @test isdefined(CoinfectionSimulator, :breeding!)
+        @test isdefined(CoinfectionSimulator, :introduce_infections!)
+        @test isdefined(CoinfectionSimulator, :add_individual!)
     end
 
     # Include test modules
     include("test_simulator.jl")
     include("test_sampling.jl")
     include("test_data_prep.jl")
-    include("test_utils.jl")
+
 end

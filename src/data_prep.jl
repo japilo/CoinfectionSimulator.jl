@@ -152,28 +152,3 @@ function create_interaction_matrix(df::DataFrame)
 
     return matrices
 end
-
-# Legacy function for backward compatibility
-"""
-    prep_interaction_matrix(df::DataFrame) -> Vector{Matrix{Float64}}
-
-Legacy function for backward compatibility. Calls `create_interaction_matrix`.
-"""
-function prep_interaction_matrix(df::DataFrame)
-    create_interaction_matrix(df)
-end
-
-"""
-    prep_interaction_matrix(strains::Int, priority_effects::Bool, interaction_strength::Float64;
-                           cf_ratio::Float64=0.5) -> Matrix{Float64}
-
-Legacy function for backward compatibility. Calls `create_interaction_matrix`.
-"""
-function prep_interaction_matrix(
-    strains::Int,
-    priority_effects::Bool,
-    interaction_strength::Float64;
-    cf_ratio::Float64=0.5
-)
-    create_interaction_matrix(strains, priority_effects, interaction_strength; cf_ratio=cf_ratio)
-end

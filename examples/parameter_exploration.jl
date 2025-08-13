@@ -1,4 +1,4 @@
-# Parameter Exploration Example: Batch Simulations and Sensitivity Analysis
+# # Parameter Exploration Example: Batch Simulations and Sensitivity Analysis
 #
 # This example demonstrates how to explore parameter space systematically
 # using CoinfectionSimulator.jl, including:
@@ -6,7 +6,6 @@
 # - Sensitivity analysis for key parameters
 # - Interaction matrix exploration
 # - Statistical analysis of results
-# - Parameter optimization techniques
 
 using CoinfectionSimulator
 using Random
@@ -15,23 +14,20 @@ using DataFrames
 using Statistics
 using StatsBase
 using CSV
+Random.seed!(42)  # Fixed seed for consistency
 
-println("=== Parameter Exploration and Sensitivity Analysis ===\n")
+# ## 1. Define Base Scenario
+# Before we start on the sensitivity analysis, let's test out a baseline scenario with two SIR-model strains.
 
-## 1. Define Base Scenario
-println("Setting up base scenario...")
-
-# Base disease models
 base_sir = SIRModel(0.15, 0.005, 0.1)  # transmission, mortality, recovery
 base_models = [base_sir, base_sir]  # Two identical strains
 
-# Base population
+# Here is a function to create a population with 100 individuals and 3 initial infections.
 function create_base_population(n_individuals=100, seed_infections=3)
-    Random.seed!(42)  # Fixed seed for consistency
     population = Population(Individual[])
 
     for i in 1:n_individuals
-        age = rand(18:65)  # Working age population
+        age = rand(0:100)
         individual = Individual(2, age)
         push!(population.individuals, individual)
     end
@@ -45,12 +41,10 @@ function create_base_population(n_individuals=100, seed_infections=3)
     return population
 end
 
-println("✓ Base scenario established")
-
 ## 2. Transmission Rate Sensitivity Analysis
-println("\nRunning transmission rate sensitivity analysis...")
+# Here we will test out different transmission rates and observe their effects on the epidemic.
 
-transmission_rates = 0.05:0.05:0.50  # Range from 5% to 50%
+transmission_rates = 0.001:0.001:0.05  # Range from 0.1% probability to 5%
 n_rates = length(transmission_rates)
 transmission_results = DataFrame(
     TransmissionRate=Float64[],
@@ -61,7 +55,6 @@ transmission_results = DataFrame(
 )
 
 for (i, rate) in enumerate(transmission_rates)
-    print("  Testing rate $(rate)... ")
 
     # Create models with varying transmission rate
     model = SIRModel(rate, 0.005, 0.1)
@@ -78,9 +71,9 @@ for (i, rate) in enumerate(transmission_rates)
     results = simulate(population, params)
 
     # Analyze results
-    populations = results[1]
-    infected_counts = [count(ind -> ind[1, 3], pop) for pop in populations]
-    recovered_counts = [count(ind -> ind[1, 4], pop) for pop in populations]
+    populations = results
+    infected_counts = [sum(ind[1, 3] for ind in pop.individuals) for pop in populations]
+    recovered_counts = [sum(ind[1, 4] for ind in pop.individuals) for pop in populations]
 
     peak_infections = maximum(infected_counts)
     final_recovered = recovered_counts[end]
@@ -91,15 +84,12 @@ for (i, rate) in enumerate(transmission_rates)
     epidemic_duration = epidemic_end === nothing ? 100 : epidemic_end
 
     push!(transmission_results, (rate, peak_infections, final_recovered, attack_rate, epidemic_duration))
-    println("Peak: $peak_infections, Attack Rate: $(round(attack_rate, digits=1))%")
 end
 
-println("✓ Transmission sensitivity complete")
-
 ## 3. Recovery Rate Sensitivity Analysis
-println("\nRunning recovery rate sensitivity analysis...")
+# Here we try out a range of recovery rates to see how they affect the epidemic dynamics.
 
-recovery_rates = 0.02:0.02:0.30
+recovery_rates = 0.01:0.01:0.20
 recovery_results = DataFrame(
     RecoveryRate=Float64[],
     PeakInfections=Int[],
@@ -108,7 +98,6 @@ recovery_results = DataFrame(
 )
 
 for rate in recovery_rates
-    print("  Testing recovery rate $(rate)... ")
 
     model = SIRModel(0.15, 0.005, rate)  # Fixed transmission, varying recovery
     models = [model, model]
@@ -118,9 +107,9 @@ for rate in recovery_rates
     population = create_base_population()
     results = simulate(population, params)
 
-    populations = results[1]
-    infected_counts = [count(ind -> ind[1, 3], pop) for pop in populations]
-    recovered_counts = [count(ind -> ind[1, 4], pop) for pop in populations]
+    populations = results
+    infected_counts = [sum(ind[1, 3] for ind in pop.individuals) for pop in populations]
+    recovered_counts = [sum(ind[1, 4] for ind in pop.individuals) for pop in populations]
 
     peak_infections = maximum(infected_counts)
     final_recovered = recovered_counts[end]
@@ -128,13 +117,12 @@ for rate in recovery_rates
     epidemic_duration = epidemic_end === nothing ? 100 : epidemic_end
 
     push!(recovery_results, (rate, peak_infections, epidemic_duration, final_recovered))
-    println("Duration: $epidemic_duration")
 end
 
-println("✓ Recovery rate sensitivity complete")
-
-## 4. Interaction Strength Exploration
-println("\nExploring interaction strengths...")
+# ## 4. Interaction Exploration
+# Here we will test out different ratios of competitive to facilitative interactions, ranging from strongly competitive to strongly facilitative.
+# We will also explore the impact of different interaction strengths, which determine how much the competition or facilitation changes transmission rate when the two strains
+# interact in a host.
 
 interaction_strengths = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]
 cf_ratios = [0.1, 0.3, 0.5, 0.7, 0.9]  # Competition vs Facilitation ratios
@@ -150,7 +138,6 @@ interaction_results = DataFrame(
 
 for strength in interaction_strengths
     for cf_ratio in cf_ratios
-        print("  Testing strength=$strength, cf_ratio=$cf_ratio... ")
 
         # Create interaction matrix
         if strength == 0.0
@@ -164,16 +151,16 @@ for strength in interaction_strengths
 
         # Create population with both strains present
         population = create_base_population()
-        population[end][2, 1] = false  # Add strain 2 seed
-        population[end][2, 3] = true
+        population.individuals[end][2, 1] = false  # Add strain 2 seed
+        population.individuals[end][2, 3] = true
 
         results = simulate(population, params)
-        populations = results[1]
+        populations = results
 
         # Count peaks and coinfections
-        strain1_counts = [count(ind -> ind[1, 3], pop) for pop in populations]
-        strain2_counts = [count(ind -> ind[2, 3], pop) for pop in populations]
-        coinfection_counts = [count(ind -> ind[1, 3] && ind[2, 3], pop) for pop in populations]
+        strain1_counts = [sum(ind[1, 3] for ind in pop.individuals) for pop in populations]
+        strain2_counts = [sum(ind[2, 3] for ind in pop.individuals) for pop in populations]
+        coinfection_counts = [sum(ind[1, 3] && ind[2, 3] for ind in pop.individuals) for pop in populations]
 
         strain1_peak = maximum(strain1_counts)
         strain2_peak = maximum(strain2_counts)
@@ -191,14 +178,11 @@ for strength in interaction_strengths
         end
 
         push!(interaction_results, (strength, cf_ratio, strain1_peak, strain2_peak, max_coinfections, interaction_type))
-        println("S1: $strain1_peak, S2: $strain2_peak, Co: $max_coinfections")
     end
 end
 
-println("✓ Interaction exploration complete")
-
 ## 5. Population Size Effects
-println("\nAnalyzing population size effects...")
+# Here we will explore the effects of population size on the two-strain epidemic.
 
 population_sizes = [50, 100, 200, 500, 1000]
 popsize_results = DataFrame(
@@ -211,7 +195,6 @@ popsize_results = DataFrame(
 n_replicates = 10  # Multiple runs for each population size
 
 for pop_size in population_sizes
-    print("  Testing population size $pop_size... ")
 
     attack_rates = Float64[]
     peak_prevalences = Float64[]
@@ -239,15 +222,15 @@ for pop_size in population_sizes
         params = SimulationParameters(models, interactions, 0.001, 0.01, 18, :none, 100)
 
         results = simulate(population, params)
-        populations = results[1]
+        populations = results
 
-        infected_counts = [count(ind -> ind[1, 3], pop) for pop in populations]
-        recovered_counts = [count(ind -> ind[1, 4], pop) for pop in populations]
+        infected_counts = [sum(ind[1, 3] for ind in pop.individuals) for pop in populations]
+        recovered_counts = [sum(ind[1, 4] for ind in pop.individuals) for pop in populations]
 
         final_recovered = recovered_counts[end]
-        attack_rate = final_recovered / length(populations[1]) * 100
+        attack_rate = final_recovered / length(populations[1].individuals) * 100
         peak_infections = maximum(infected_counts)
-        peak_prevalence = peak_infections / length(populations[1]) * 100
+        peak_prevalence = peak_infections / length(populations[1].individuals) * 100
         epidemic = final_recovered > n_seeds ? 1 : 0  # Did epidemic spread beyond seeds?
 
         push!(attack_rates, attack_rate)
@@ -260,17 +243,14 @@ for pop_size in population_sizes
     epidemic_probability = mean(epidemic_occurred)
 
     push!(popsize_results, (pop_size, mean_attack_rate, mean_peak_prevalence, epidemic_probability))
-    println("Attack rate: $(round(mean_attack_rate, digits=1))%, Epidemic prob: $(round(epidemic_probability, digits=2))")
 end
 
-println("✓ Population size analysis complete")
-
 ## 6. Demographic Parameter Effects
-println("\nAnalyzing demographic parameter effects...")
+# Here we look into the effects of the demography of the host population on the spread of the diseases.
 
 # Test different birth and death rates
 birth_rates = [0.0, 0.01, 0.02, 0.05]
-death_rates = [0.0, 0.005, 0.01, 0.02]
+death_rates = [0.00001, 0.005, 0.01, 0.02]
 
 demographic_results = DataFrame(
     BirthRate=Float64[],
@@ -282,7 +262,6 @@ demographic_results = DataFrame(
 
 for birth_rate in birth_rates
     for death_rate in death_rates
-        print("  Testing birth=$birth_rate, death=$death_rate... ")
 
         models = [base_sir]  # Single strain for clarity
         interactions = reshape([1.0], 1, 1)
@@ -301,29 +280,26 @@ for birth_rate in birth_rates
         population[1][1, 3] = true
 
         results = simulate(population, params)
-        populations = results[1]
+        populations = results
 
-        initial_pop = length(populations[1])
-        final_pop = length(populations[end])
+        initial_pop = length(populations[1].individuals)
+        final_pop = length(populations[end].individuals)
         pop_change = (final_pop - initial_pop) / initial_pop * 100
 
-        recovered_counts = [count(ind -> ind[1, 4], pop) for pop in populations]
+        recovered_counts = [sum(ind[1, 4] for ind in pop.individuals) for pop in populations]
         epidemic_size = recovered_counts[end]
 
         # Find when epidemic ends
-        infected_counts = [count(ind -> ind[1, 3], pop) for pop in populations]
+        infected_counts = [sum(ind[1, 3] for ind in pop.individuals) for pop in populations]
         epidemic_end = findfirst(infected_counts .== 0)
         epidemic_duration = epidemic_end === nothing ? 150 : epidemic_end
 
         push!(demographic_results, (birth_rate, death_rate, pop_change, epidemic_size, epidemic_duration))
-        println("Pop change: $(round(pop_change, digits=1))%")
     end
 end
 
-println("✓ Demographic analysis complete")
-
-## 7. Create Comprehensive Visualizations
-println("\nCreating parameter exploration visualizations...")
+# ## 7. Create Comprehensive Visualizations
+# Now we can examine the results of the sensitivity analysis using data visualization.
 
 # Plot 1: Transmission rate sensitivity
 p1 = plot(transmission_results.TransmissionRate, transmission_results.AttackRate,
@@ -379,39 +355,17 @@ final_plot = plot(p1, p2, p3, p4,
     plot_title="Parameter Exploration Results")
 
 savefig(final_plot, "parameter_exploration_results.png")
-println("✓ Saved parameter exploration plots")
 
 ## 8. Statistical Analysis
-println("\nPerforming statistical analysis...")
+# Now let's perform the sensitivity analysis statistically.
 
-# Correlation analysis between parameters and outcomes
-println("\nTransmission Rate Correlations:")
-println("  - vs Attack Rate: $(round(cor(transmission_results.TransmissionRate, transmission_results.AttackRate), digits=3))")
-println("  - vs Peak Infections: $(round(cor(transmission_results.TransmissionRate, transmission_results.PeakInfections), digits=3))")
-println("  - vs Epidemic Duration: $(round(cor(transmission_results.TransmissionRate, transmission_results.EpidemicDuration), digits=3))")
-
-println("\nRecovery Rate Correlations:")
-println("  - vs Peak Infections: $(round(cor(recovery_results.RecoveryRate, recovery_results.PeakInfections), digits=3))")
-println("  - vs Epidemic Duration: $(round(cor(recovery_results.RecoveryRate, recovery_results.EpidemicDuration), digits=3))")
-
-# Find optimal parameters for different objectives
-println("\nOptimal Parameters:")
-
-# Minimize peak infections
-min_peak_idx = argmin(transmission_results.PeakInfections)
-println("  - Minimum Peak Infections: Rate $(transmission_results.TransmissionRate[min_peak_idx]) → $(transmission_results.PeakInfections[min_peak_idx]) infections")
-
-# Minimize epidemic duration
-min_duration_idx = argmin(recovery_results.EpidemicDuration)
-println("  - Minimum Epidemic Duration: Recovery rate $(recovery_results.RecoveryRate[min_duration_idx]) → $(recovery_results.EpidemicDuration[min_duration_idx]) days")
-
-# Balance attack rate and duration
-transmission_results.Score = transmission_results.AttackRate .* 0.6 + transmission_results.EpidemicDuration .* 0.4
-best_balance_idx = argmin(transmission_results.Score)
-println("  - Best Balance (60% attack rate, 40% duration): Rate $(transmission_results.TransmissionRate[best_balance_idx])")
-
-## 9. Export All Results
-println("\nExporting comprehensive results...")
+# Here is a correlation analysis between interaction parameters (C:F ratio, interaction strength) and outcomes (attack rate, peak infections, and duration of the epidemic.)
+round(cor(interaction_results.CFRatio, interaction_results.Strain1Peak), digits=3)
+round(cor(interaction_results.CFRatio, interaction_results.Strain2Peak), digits=3)
+round(cor(interaction_results.CFRatio, interaction_results.Coinfections), digits=3)
+round(cor(interaction_results.InteractionStrength, interaction_results.Strain1Peak), digits=3)
+round(cor(interaction_results.InteractionStrength, interaction_results.Strain2Peak), digits=3)
+round(cor(interaction_results.InteractionStrength, interaction_results.Coinfections), digits=3)
 
 # Save all result DataFrames
 CSV.write("transmission_sensitivity.csv", transmission_results)
@@ -420,31 +374,10 @@ CSV.write("interaction_exploration.csv", interaction_results)
 CSV.write("population_size_effects.csv", popsize_results)
 CSV.write("demographic_effects.csv", demographic_results)
 
-# Create summary report
-summary_df = DataFrame(
-    Parameter=["Transmission Rate", "Recovery Rate", "Interaction Strength", "Population Size", "Birth Rate", "Death Rate"],
-    Effect=["Strong positive correlation with attack rate and peak infections",
-        "Strong negative correlation with epidemic duration",
-        "Complex non-linear effects on coinfection patterns",
-        "Threshold effects on epidemic probability",
-        "Increases epidemic size through demographic turnover",
-        "Reduces epidemic size through increased mortality"],
-    Sensitivity=["High", "High", "Medium", "High", "Low", "Medium"],
-    Recommendation=["Control transmission early", "Promote recovery mechanisms",
-        "Consider interaction effects in multi-strain scenarios",
-        "Account for population size in risk assessment",
-        "Minor factor in short-term epidemics",
-        "Important for vulnerable populations"]
-)
+## 9. Disease Model Comparison
+# Finally, let's compare outbreaks between different compartmental models (SI, SIR, SEIR, SEIRS).
 
-CSV.write("parameter_analysis_summary.csv", summary_df)
-
-println("✓ All results exported to CSV files")
-
-## 10. Model Comparison Framework
-println("\nDemonstrating model comparison framework...")
-
-# Compare different disease model types
+# Compare different disease model types, with the same parameters wherever possible.
 models_to_compare = [
     ("SI Model", SIModel(0.15, 0.005)),
     ("SIR Model", SIRModel(0.15, 0.005, 0.1)),
@@ -461,7 +394,6 @@ model_comparison = DataFrame(
 )
 
 for (model_name, model) in models_to_compare
-    print("  Testing $model_name... ")
 
     models = [model]
     interactions = reshape([1.0], 1, 1)
@@ -474,11 +406,11 @@ for (model_name, model) in models_to_compare
     end
 
     results = simulate(population, params)
-    populations = results[1]
+    populations = results
 
-    infected_counts = [count(ind -> ind[1, 3], pop) for pop in populations]
-    recovered_counts = [count(ind -> ind[1, 4], pop) for pop in populations]
-    susceptible_counts = [count(ind -> ind[1, 1], pop) for pop in populations]
+    infected_counts = [sum(ind[1, 3] for ind in pop.individuals) for pop in populations]
+    recovered_counts = [sum(ind[1, 4] for ind in pop.individuals) for pop in populations]
+    susceptible_counts = [sum(ind[1, 1] for ind in pop.individuals) for pop in populations]
 
     peak_infections = maximum(infected_counts)
     final_recovered = recovered_counts[end]
@@ -488,27 +420,8 @@ for (model_name, model) in models_to_compare
     final_susceptible = susceptible_counts[end]
 
     push!(model_comparison, (model_name, peak_infections, attack_rate, epidemic_duration, final_susceptible))
-    println("Complete")
 end
 
-println("\nModel Comparison Results:")
 display(model_comparison)
 
 CSV.write("model_comparison.csv", model_comparison)
-
-println("\n=== Parameter Exploration Complete! ===")
-println("This analysis demonstrated:")
-println("• Systematic parameter sensitivity analysis")
-println("• Interaction strength exploration")
-println("• Population size effects")
-println("• Demographic parameter impacts")
-println("• Statistical correlation analysis")
-println("• Parameter optimization approaches")
-println("• Model comparison framework")
-println("• Comprehensive result export")
-println("\nKey findings:")
-println("• Transmission rate has strongest impact on epidemic size")
-println("• Recovery rate critically affects epidemic duration")
-println("• Population size creates threshold effects")
-println("• Strain interactions can significantly modify outcomes")
-println("• Different disease models show distinct epidemic patterns")

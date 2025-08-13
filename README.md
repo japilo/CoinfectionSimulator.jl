@@ -7,7 +7,7 @@
 
 A Julia package for simulating multi-strain coinfection dynamics in host populations with imperfect ecological sampling.
 
-There are many ways to simulate compartmental disease models in Julia. What CoinfectionSimulator.jl brings to the table is community ecology interactions between pathogens that circulate in a host population. The simulator works off of the assumption that pathogens can affect the probability of other pathogens successfully infecting the host, either by facilitating or inhibiting their establishment. The user can specify all possible pairwise interactions between pathogens using an interaction matrix, which can include or exclude priority effects.
+There are many ways to simulate compartmental disease models in Julia. What CoinfectionSimulator.jl brings to the table is community ecology interactions between pathogens that circulate in a host population. The simulator works off of the assumption that pathogens can affect the probability of other pathogens successfully infecting the host, either by facilitating or inhibiting their establishment. The user can specify all possible pairwise interactions between pathogens using an interaction matrix, which can include or exclude priority effects. In its current form, the simulator assumes density-dependent transmission.
 
 ## Features
 

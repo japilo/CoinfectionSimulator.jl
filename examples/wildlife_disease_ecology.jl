@@ -4,7 +4,7 @@
 # research with directly transmitted parasites and pathogens, including:
 # - Parasites and pathogens with density-dependent transmission
 # - Animal population dynamics with birth, death, and aging
-# - Strain interactions through immune cross-reactivity and resource competition
+# - Strain interactions in coinfected individuals
 # - Wildlife sampling challenges and detection limitations
 
 using CoinfectionSimulator
@@ -13,18 +13,18 @@ using Plots
 using DataFrames
 using Statistics
 using CSV
-
-# Set random seed for reproducibility
-Random.seed!(2024)
+Random.seed!(2025)
 
 ## 1. Define Parasite Models for Wildlife Host
+# In this example, we imagine a host population of wildlife that can be infected with four different parasites/pathogens.
+# We will consider the time step of the simulation to mean a month in the real world (you can interpret the time steps of the simulation as you like, though a year is likely too long.)
 
 # Strain 1: Acute viral infection
 # High transmission, short infectious period, immunity develops
 acute_virus = SIRModel(
-    0.08,    # Transmission rate per contact per time step
+    0.08,    # Transmission rate per contact per month.
     0.012,   # Disease-induced mortality
-    0.25     # Recovery rate (4 time steps average infectious period)
+    0.25     # Recovery rate (4 month average infectious period)
 )
 
 # Strain 2: Chronic bacterial infection
@@ -40,7 +40,7 @@ intestinal_parasite = SEIRModel(
     0.06,    # Moderate transmission
     0.005,   # Low mortality
     0.15,    # Recovery/clearance rate
-    6        # Prepatent period (6 time steps before infectious)
+    6        # Prepatent period (6 months before infectious)
 )
 
 # Strain 4: Ectoparasite
@@ -61,6 +61,7 @@ disease_models = [acute_virus, chronic_bacteria, intestinal_parasite, ectoparasi
 # - Immunosuppression by chronic infections
 # - Competition for host resources
 # - Facilitation through immune system damage
+# - Priority effects (matrix is asymmetric, it matters which strain infects the host first)
 
 interactions = [
     1.0 0.7 1.2 0.9;    # Acute virus: competes with bacteria, facilitates internal parasite
@@ -88,7 +89,7 @@ function create_wildlife_population(n_animals=300)
             rand(37:60)     # 5% old animals (3-5 years)
         end
 
-        individual = Individual(4, age)  # 4 parasite strains
+        individual = Individual(4, age)  # 4 strains
         push!(population.individuals, individual)
     end
 
@@ -97,33 +98,44 @@ end
 
 wildlife_population = create_wildlife_population(300)
 
-# Initial infections reflecting natural exposure patterns
+# Create a new population with all individuals initially susceptible
+wildlife_population = create_wildlife_population(300)
+
+# Now let's introduce infections in a safe way that ensures each strain
+# is in exactly one state per individual
+
 # Chronic bacteria most common (persists in population)
 chronic_initial = 8
 for i in 1:chronic_initial
-    wildlife_population[i][2, 1] = false
-    wildlife_population[i][2, 3] = true
+    # Make infected with chronic bacteria (strain 2)
+    # First set susceptible to false
+    wildlife_population.individuals[i].state[2, 1] = false
+    # Then set infected to true
+    wildlife_population.individuals[i].state[2, 3] = true
 end
 
 # Acute virus (recent outbreak)
 virus_initial = 3
 for i in (chronic_initial+1):(chronic_initial+virus_initial)
-    wildlife_population[i][1, 1] = false
-    wildlife_population[i][1, 3] = true
+    # Make infected with acute virus (strain 1)
+    wildlife_population.individuals[i].state[1, 1] = false
+    wildlife_population.individuals[i].state[1, 3] = true
 end
 
 # Intestinal parasites (some latent infections from previous exposure)
 parasite_initial = 5
 for i in (chronic_initial+virus_initial+1):(chronic_initial+virus_initial+parasite_initial)
-    wildlife_population[i][3, 1] = false
-    wildlife_population[i][3, 2] = true  # Exposed (prepatent)
+    # Make exposed to intestinal parasite (strain 3)
+    wildlife_population.individuals[i].state[3, 1] = false
+    wildlife_population.individuals[i].state[3, 2] = true  # Exposed (prepatent)
 end
 
 # Ectoparasites (few, transmission just starting)
 ecto_initial = 2
 for i in (chronic_initial+virus_initial+parasite_initial+1):(chronic_initial+virus_initial+parasite_initial+ecto_initial)
-    wildlife_population[i][4, 1] = false
-    wildlife_population[i][4, 3] = true
+    # Make infected with ectoparasite (strain 4)
+    wildlife_population.individuals[i].state[4, 1] = false
+    wildlife_population.individuals[i].state[4, 3] = true
 end
 
 ## 4. Run Multi-Season Simulation
@@ -139,8 +151,7 @@ params = SimulationParameters(
     24       # 2 years of monthly time steps
 )
 
-results = simulate(wildlife_population, params)
-populations, ages = results
+populations = simulate(wildlife_population, params)
 
 ## 5. Analyze Disease Dynamics and Population Health
 
@@ -158,34 +169,35 @@ total_animals = zeros(Int, n_timesteps)
 # Track population health metrics
 total_infected_any = zeros(Int, n_timesteps)
 multiple_infections = zeros(Int, n_timesteps)
-healthy_animals = zeros(Int, n_timesteps)
+uninfected_animals = zeros(Int, n_timesteps)
 
 for t in 1:n_timesteps
     pop = populations[t]
-    total_animals[t] = length(pop)
+    total_animals[t] = length(pop.individuals)
 
-    for animal in pop
+    for i in 1:length(pop.individuals)
+        animal = pop.individuals[i]
         # Count disease states for each strain
         for strain in 1:n_strains
-            if animal[strain, 1]
+            if animal.state[strain, 1]
                 susceptible[t, strain] += 1
-            elseif animal[strain, 2]
+            elseif animal.state[strain, 2]
                 exposed[t, strain] += 1
-            elseif animal[strain, 3]
+            elseif animal.state[strain, 3]
                 infected[t, strain] += 1
-            elseif animal[strain, 4]
+            elseif animal.state[strain, 4]
                 recovered[t, strain] += 1
             end
         end
 
         # Population health metrics
-        infections_count = sum(animal[strain, 3] for strain in 1:n_strains)
-        any_infection = any(animal[strain, 3] for strain in 1:n_strains)
+        infections_count = sum(animal.state[strain, 3] for strain in 1:n_strains)
+        any_infection = any(animal.state[strain, 3] for strain in 1:n_strains)
 
         if any_infection
             total_infected_any[t] += 1
         else
-            healthy_animals[t] += 1
+            uninfected_animals[t] += 1
         end
 
         if infections_count >= 2
@@ -195,29 +207,20 @@ for t in 1:n_timesteps
 end
 
 # Calculate key epidemiological metrics
-println("\n=== WILDLIFE DISEASE SUMMARY (24 months) ===")
+
 for strain in 1:n_strains
     peak_infected = maximum(infected[:, strain])
     peak_month = findfirst(infected[:, strain] .== peak_infected)
     total_ever_infected = maximum(infected[:, strain] .+ recovered[:, strain])
     prevalence_final = infected[end, strain] / total_animals[end] * 100
-
-    println("$(strain_names[strain]):")
-    println("  - Peak prevalence: $peak_infected animals (month $peak_month)")
-    println("  - Total ever infected: $total_ever_infected animals")
-    println("  - Final prevalence: $(round(prevalence_final, digits=1))%")
 end
 
 # Coinfection analysis
 max_multiple = maximum(multiple_infections)
 avg_multiple = mean(multiple_infections)
-println("\nCoinfection patterns:")
-println("  - Peak multiple infections: $max_multiple animals")
-println("  - Average multiple infections: $(round(avg_multiple, digits=1)) animals")
 
 # Population health
-final_health = healthy_animals[end] / total_animals[end] * 100
-println("  - Final healthy animals: $(round(final_health, digits=1))%")
+final_uninfected = uninfected_animals[end] / total_animals[end] * 100
 
 ## 6. Age-structured Disease Analysis
 
@@ -228,39 +231,28 @@ age_groups = [(0, 6, "Juvenile"), (7, 18, "Young Adult"), (19, 36, "Mature Adult
 age_disease_df = DataFrame(
     AgeGroup=String[],
     Count=Int[],
-    Healthy=Int[],
+    Uninfected=Int[],
     SingleInfection=Int[],
-    MultipleInfections=Int[],
-    MortalityRisk=String[]
+    MultipleInfections=Int[]
 )
 
 for (min_age, max_age, group_name) in age_groups
-    group_animals = filter(animal -> min_age <= animal.age <= max_age, final_pop)
+    group_animals = [animal for animal in final_pop.individuals if min_age <= animal.age <= max_age]
     count = length(group_animals)
 
     if count > 0
-        healthy = sum(!any(animal[strain, 3] for strain in 1:4) for animal in group_animals)
-        single_inf = sum(sum(animal[strain, 3] for strain in 1:4) == 1 for animal in group_animals)
-        multiple_inf = sum(sum(animal[strain, 3] for strain in 1:4) >= 2 for animal in group_animals)
+        uninfected = sum(!any(animal.state[strain, 3] for strain in 1:4) for animal in group_animals)
+        single_inf = sum(sum(animal.state[strain, 3] for strain in 1:4) == 1 for animal in group_animals)
+        multiple_inf = sum(sum(animal.state[strain, 3] for strain in 1:4) >= 2 for animal in group_animals)
 
-        # Assess mortality risk based on age and infection status
-        risk = if group_name == "Juvenile" && (single_inf + multiple_inf) > 0
-            "High"
-        elseif group_name == "Old" && multiple_inf > 0
-            "High"
-        elseif multiple_inf > 0
-            "Moderate"
-        else
-            "Low"
-        end
-
-        push!(age_disease_df, (group_name, count, healthy, single_inf, multiple_inf, risk))
+        push!(age_disease_df, (group_name, count, uninfected, single_inf, multiple_inf))
     end
 end
 
 display(age_disease_df)
 
 ## 7. Wildlife Sampling Simulation
+# Here we will explore different possible scenarios of disease surveillance in wildlife and how they affect detection of strains.
 
 # Simulate different sampling strategies used in wildlife research
 sampling_strategies = [
@@ -283,8 +275,8 @@ for (strategy_name, prop_sampled, fp_rate, fn_rate) in sampling_strategies
     detection_matrix = sample_populations(populations, sampling_params)
 
     for strain in 1:n_strains
-        # Months where strain was actually present at >1% prevalence
-        true_positive_months = sum((infected[:, strain] ./ total_animals) .> 0.01)
+        # Months where strain was actually present
+        true_positive_months = sum((infected[:, strain] ./ total_animals) .> 0)
 
         # Months where strain was detected by sampling
         detected_months = sum(detection_matrix[:, strain])
@@ -313,7 +305,7 @@ end
 
 # Plot 2: Population health metrics
 p2 = plot(title="Population Health Status", xlabel="Month", ylabel="Number of Animals")
-plot!(p2, months, healthy_animals, label="Healthy", lw=2, color=:green)
+plot!(p2, months, uninfected_animals, label="Uninfected", lw=2, color=:green)
 plot!(p2, months, total_infected_any, label="Any Infection", lw=2, color=:red)
 plot!(p2, months, multiple_infections, label="Multiple Infections", lw=2, color=:purple)
 
@@ -325,13 +317,12 @@ p3 = bar(age_groups_plot, infected_by_age,
     color=[:lightblue, :orange, :red, :darkred], legend=false)
 
 # Combine plots
-final_plot = plot(p1, p2, p3, layout=(1, 2), size=(1400, 1000),
+final_plot = plot(p1, p2, p3, layout=(3, 1), size=(1400, 1000),
     plot_title="Wildlife Disease Ecology: Multi-strain Dynamics")
 
 savefig(final_plot, "wildlife_disease_ecology.png")
 
-## 11. Export Wildlife Disease Data
-println("\nExporting wildlife disease data...")
+## 9. Export Wildlife Disease Data
 
 # Disease time series
 disease_timeseries = DataFrame(

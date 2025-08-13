@@ -19,8 +19,8 @@ struct SIModel <: DiseaseModel
     mortality::Float64
 
     function SIModel(transmission::Float64, mortality::Float64)
-        0 ≤ transmission ≤ 1 || throw(ArgumentError("Transmission rate must be between 0 and 1"))
-        0 ≤ mortality ≤ 1 || throw(ArgumentError("Mortality rate must be between 0 and 1"))
+        0 ≤ transmission ≤ 1 || throw(ArgumentError("Transmission rate ($transmission) must be between 0 and 1"))
+        0 ≤ mortality ≤ 1 || throw(ArgumentError("Mortality rate ($mortality) must be between 0 and 1"))
         new(transmission, mortality)
     end
 end
@@ -41,9 +41,9 @@ struct SIRModel <: DiseaseModel
     recovery::Float64
 
     function SIRModel(transmission::Float64, mortality::Float64, recovery::Float64)
-        0 ≤ transmission ≤ 1 || throw(ArgumentError("Transmission rate must be between 0 and 1"))
-        0 ≤ mortality ≤ 1 || throw(ArgumentError("Mortality rate must be between 0 and 1"))
-        0 ≤ recovery ≤ 1 || throw(ArgumentError("Recovery rate must be between 0 and 1"))
+        0 ≤ transmission ≤ 1 || throw(ArgumentError("Transmission rate ($transmission) must be between 0 and 1"))
+        0 ≤ mortality ≤ 1 || throw(ArgumentError("Mortality rate ($mortality) must be between 0 and 1"))
+        0 ≤ recovery ≤ 1 || throw(ArgumentError("Recovery rate ($recovery) must be between 0 and 1"))
         new(transmission, mortality, recovery)
     end
 end
@@ -66,10 +66,10 @@ struct SEIRModel <: DiseaseModel
     latency::Int
 
     function SEIRModel(transmission::Float64, mortality::Float64, recovery::Float64, latency::Int)
-        0 ≤ transmission ≤ 1 || throw(ArgumentError("Transmission rate must be between 0 and 1"))
-        0 ≤ mortality ≤ 1 || throw(ArgumentError("Mortality rate must be between 0 and 1"))
-        0 ≤ recovery ≤ 1 || throw(ArgumentError("Recovery rate must be between 0 and 1"))
-        latency > 0 || throw(ArgumentError("Latency period must be positive"))
+        0 ≤ transmission ≤ 1 || throw(ArgumentError("Transmission rate ($transmission) must be between 0 and 1"))
+        0 ≤ mortality ≤ 1 || throw(ArgumentError("Mortality rate ($mortality) must be between 0 and 1"))
+        0 ≤ recovery ≤ 1 || throw(ArgumentError("Recovery rate ($recovery) must be between 0 and 1"))
+        latency > 0 || throw(ArgumentError("Latency period ($latency) must be positive"))
         new(transmission, mortality, recovery, latency)
     end
 end
@@ -95,11 +95,11 @@ struct SEIRSModel <: DiseaseModel
 
     function SEIRSModel(transmission::Float64, mortality::Float64, recovery::Float64,
         latency::Int, immunity_loss::Float64)
-        0 ≤ transmission ≤ 1 || throw(ArgumentError("Transmission rate must be between 0 and 1"))
-        0 ≤ mortality ≤ 1 || throw(ArgumentError("Mortality rate must be between 0 and 1"))
-        0 ≤ recovery ≤ 1 || throw(ArgumentError("Recovery rate must be between 0 and 1"))
-        latency > 0 || throw(ArgumentError("Latency period must be positive"))
-        0 ≤ immunity_loss ≤ 1 || throw(ArgumentError("Immunity loss rate must be between 0 and 1"))
+        0 ≤ transmission ≤ 1 || throw(ArgumentError("Transmission rate ($transmission) must be between 0 and 1"))
+        0 ≤ mortality ≤ 1 || throw(ArgumentError("Mortality rate ($mortality) must be between 0 and 1"))
+        0 ≤ recovery ≤ 1 || throw(ArgumentError("Recovery rate ($recovery) must be between 0 and 1"))
+        latency > 0 || throw(ArgumentError("Latency period ($latency) must be positive"))
+        0 ≤ immunity_loss ≤ 1 || throw(ArgumentError("Immunity loss rate ($immunity_loss) must be between 0 and 1"))
         new(transmission, mortality, recovery, latency, immunity_loss)
     end
 end
@@ -107,7 +107,8 @@ end
 """
     Individual
 
-Represents a single individual in the population.
+Represents a single individual in the population. New individuals can be constructed using the `Individual` constructor and specifying the number of strains and the age.
+These new individuals are initialized as susceptible to all strains, but can be modified to other states.
 
 # Fields
 - `state::Matrix{Bool}`: Disease states matrix with rows for each strain and columns for [S,E,I,R]
@@ -118,8 +119,8 @@ mutable struct Individual
     age::Int
 
     function Individual(state::AbstractMatrix{Bool}, age::Int)
-        size(state, 2) == 4 || throw(ArgumentError("State matrix must have 4 columns for [S,E,I,R]"))
-        age >= 0 || throw(ArgumentError("Age must be non-negative"))
+        size(state, 2) == 4 || throw(ArgumentError("State matrix must have 4 columns for [S,E,I,R] (currently has $(size(state, 2)) columns)"))
+        age >= 0 || throw(ArgumentError("Age ($age) must be non-negative"))
 
         # Validate that each strain is in exactly one state
         for i in 1:size(state, 1)
@@ -164,7 +165,7 @@ end
 # Constructor to convert legacy format
 function Population(matrices::Vector{<:AbstractMatrix{Bool}}, ages::Vector{Int})
     length(matrices) == length(ages) ||
-        throw(ArgumentError("Number of matrices must match number of ages"))
+        throw(ArgumentError("Number of matrices ($(length(matrices))) must match number of ages ($(length(ages)))"))
     Population([Individual(m, a) for (m, a) in zip(matrices, ages)])
 end
 
@@ -227,18 +228,12 @@ struct SimulationParameters
         size(interactions) == (n_strains, n_strains) ||
             throw(ArgumentError("Interaction matrix size must match number of disease models"))
 
-        0 ≤ base_mortality ≤ 1 || throw(ArgumentError("Base mortality must be between 0 and 1"))
-        fecundity ≥ 0 || throw(ArgumentError("Fecundity must be non-negative"))
-        age_maturity > 0 || throw(ArgumentError("Age of maturity must be positive"))
+        0 ≤ base_mortality ≤ 1 || throw(ArgumentError("Base mortality ($base_mortality) must be between 0 and 1"))
+        fecundity ≥ 0 || throw(ArgumentError("Fecundity ($fecundity) must be non-negative"))
+        age_maturity > 0 || throw(ArgumentError("Age of maturity ($age_maturity) must be positive"))
         introduction in (:simultaneous, :random, :none) ||
-            throw(ArgumentError("Introduction must be :simultaneous, :random, or :none"))
-        time_steps ≥ 1 || throw(ArgumentError("Time steps must be positive"))
-
-        # Check that base_mortality + disease_mortality <= 1
-        for model in models
-            base_mortality + model.mortality ≤ 1 ||
-                throw(ArgumentError("Base mortality + disease mortality must not exceed 1"))
-        end
+            throw(ArgumentError("Introduction ($introduction) must be :simultaneous, :random, or :none"))
+        time_steps ≥ 1 || throw(ArgumentError("Time steps ($time_steps) must be positive"))
 
         new(models, interactions, base_mortality, fecundity, age_maturity, introduction, time_steps)
     end
@@ -264,9 +259,9 @@ struct SamplingParameters
         false_positive_rate::Float64,
         false_negative_rate::Float64
     )
-        0 ≤ proportion_sampled ≤ 1 || throw(ArgumentError("Proportion sampled must be between 0 and 1"))
-        0 ≤ false_positive_rate ≤ 1 || throw(ArgumentError("False positive rate must be between 0 and 1"))
-        0 ≤ false_negative_rate ≤ 1 || throw(ArgumentError("False negative rate must be between 0 and 1"))
+        0 ≤ proportion_sampled ≤ 1 || throw(ArgumentError("Proportion sampled ($proportion_sampled) must be between 0 and 1"))
+        0 ≤ false_positive_rate ≤ 1 || throw(ArgumentError("False positive rate ($false_positive_rate) must be between 0 and 1"))
+        0 ≤ false_negative_rate ≤ 1 || throw(ArgumentError("False negative rate ($false_negative_rate) must be between 0 and 1"))
         new(proportion_sampled, false_positive_rate, false_negative_rate)
     end
 end

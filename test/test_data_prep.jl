@@ -67,37 +67,4 @@ using LinearAlgebra
 
         @test_throws ArgumentError create_interaction_matrix(df_missing)
     end
-
-    @testset "Backward Compatibility" begin
-        # Test that the legacy interface still works
-
-        df = DataFrame(
-            interaction_strength=[0.2, 0.0],
-            cf_ratio=[0.4, 0.5],
-            priority_effects=[true, false],
-            strains=[3, 2]
-        )
-
-        matrices_new = create_interaction_matrix(df)
-        matrices_old = prep_interaction_matrix(df)
-
-        # Test that both functions produce same number of matrices
-        @test length(matrices_new) == length(matrices_old)
-        @test length(matrices_new) == 2
-
-        # Test that dimensions match
-        @test size(matrices_new[1]) == size(matrices_old[1]) == (3, 3)
-        @test size(matrices_new[2]) == size(matrices_old[2]) == (2, 2)
-
-        # Test that zero interaction matrices are identical (deterministic)
-        @test matrices_new[2] == matrices_old[2]
-        @test matrices_new[2] ≈ Matrix{Float64}(I, 2, 2)
-
-        # Test single matrix creation with zero interaction (deterministic)
-        matrix_new = create_interaction_matrix(3, true, 0.0, cf_ratio=0.5)
-        matrix_old = prep_interaction_matrix(3, true, 0.0, cf_ratio=0.5)
-
-        @test matrix_new == matrix_old
-        @test matrix_new ≈ Matrix{Float64}(I, 3, 3)
-    end
 end
