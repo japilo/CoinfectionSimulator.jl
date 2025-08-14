@@ -69,7 +69,8 @@ params = SimulationParameters(
     0.1,                     # Fecundity
     30,                      # Age of maturity
     :simultaneous,           # Introduction type
-    50                       # Time steps
+    50,                      # Time steps
+    :frequency               # Transmission type (:frequency or :density)
 )
 
 # Run simulation

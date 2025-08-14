@@ -102,7 +102,8 @@ params = SimulationParameters(
 	0.02,                    # Fecundity (birth rate, supplied as lambda to a Poisson process)
 	30,                      # Age of maturity
 	:none,                   # No additional introductions of strains
-	150,                      # Number of time steps
+	150,                     # Number of time steps
+	:frequency               # Transmission type (:frequency or :density)
 )
 
 ## 5. Run Simulation

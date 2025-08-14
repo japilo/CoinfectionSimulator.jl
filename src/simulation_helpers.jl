@@ -45,7 +45,7 @@ function breeding!(population::Population, fecundity::Float64, maturity_age::Int
     n_births = rand(Poisson(mature_count * fecundity))
     n_births == 0 && return
 
-    # Create new individuals - pre-allocate to avoid repeated resizing
+    # Create new individuals
     n_strains = size(population[1], 1)
     sizehint!(population.individuals, length(population) + n_births)
 
@@ -94,7 +94,7 @@ function process_disease_dynamics!(population::Population, params::SimulationPar
 
         # Process the appropriate disease model
         process_strain!(population, alive, strain, params.models[strain], params.interactions[strain, :],
-            mortality_list)
+            mortality_list, params.transmission_type)
     end
 end
 
@@ -107,7 +107,7 @@ function apply_base_mortality!(population::Population, alive::Vector{Bool},
     base_mortality::Float64, mortality_list::Set{Int})
     base_mortality <= 0 && return
 
-    # Find all living individuals - use pre-allocated approach
+    # Find all living individuals
     n_alive = count(alive)
     n_alive == 0 && return
 
@@ -115,7 +115,7 @@ function apply_base_mortality!(population::Population, alive::Vector{Bool},
     n_deaths = rand(Binomial(n_alive, base_mortality))
     n_deaths <= 0 && return
 
-    # Collect alive indices more efficiently
+    # Collect alive indices
     alive_indices = Vector{Int}()
     sizehint!(alive_indices, n_alive)
     for i in 1:length(alive)
@@ -135,67 +135,67 @@ end
 Process disease dynamics for a specific strain based on its disease model. This function uses multiple dispatch to apply the appropriate disease processes to each model.
 """
 function process_strain!(population::Population, alive::Vector{Bool}, strain::Int,
-    model::SIModel, interactions::Vector{Float64}, mortality_list::Set{Int})
+    model::SIModel, interactions::Vector{Float64}, mortality_list::Set{Int}, transmission_type::Symbol)
     # Process infection spread
-    process_infections!(population, alive, strain, model.transmission, interactions)
+    process_infections!(population, alive, strain, model.transmission, interactions, transmission_type)
 
-    # Process mortality from infection (base mortality handled separately)
+    # Process mortality from infection
     process_disease_mortality!(population, alive, strain, model.mortality, mortality_list)
 end
 
 function process_strain!(population::Population, alive::Vector{Bool}, strain::Int,
-    model::SIRModel, interactions::Vector{Float64}, mortality_list::Set{Int})
+    model::SIRModel, interactions::Vector{Float64}, mortality_list::Set{Int}, transmission_type::Symbol)
     # Process infection spread
-    process_infections!(population, alive, strain, model.transmission, interactions)
+    process_infections!(population, alive, strain, model.transmission, interactions, transmission_type)
 
     # Process recovery
     process_recovery!(population, alive, strain, model.recovery)
 
-    # Process mortality from infection (base mortality handled separately)
+    # Process mortality from infection
     process_disease_mortality!(population, alive, strain, model.mortality, mortality_list)
 end
 
 function process_strain!(population::Population, alive::Vector{Bool}, strain::Int,
-    model::SEIRModel, interactions::Vector{Float64}, mortality_list::Set{Int})
+    model::SEIRModel, interactions::Vector{Float64}, mortality_list::Set{Int}, transmission_type::Symbol)
     # Process exposure
-    process_exposures!(population, alive, strain, model.transmission, interactions)
+    process_exposures!(population, alive, strain, model.transmission, interactions, transmission_type)
 
-    # Process transition from exposed to infected
+    # Process latent infections (exposed -> infected)
     process_latent_infections!(population, alive, strain, model.latency)
 
     # Process recovery
     process_recovery!(population, alive, strain, model.recovery)
 
-    # Process mortality from infection (base mortality handled separately)
+    # Process mortality from infection
     process_disease_mortality!(population, alive, strain, model.mortality, mortality_list)
 end
 
 function process_strain!(population::Population, alive::Vector{Bool}, strain::Int,
-    model::SEIRSModel, interactions::Vector{Float64}, mortality_list::Set{Int})
+    model::SEIRSModel, interactions::Vector{Float64}, mortality_list::Set{Int}, transmission_type::Symbol)
     # Process exposure
-    process_exposures!(population, alive, strain, model.transmission, interactions)
+    process_exposures!(population, alive, strain, model.transmission, interactions, transmission_type)
 
-    # Process transition from exposed to infected
+    # Process latent infections (exposed -> infected)
     process_latent_infections!(population, alive, strain, model.latency)
 
     # Process recovery
     process_recovery!(population, alive, strain, model.recovery)
 
-    # Process immunity loss
+    # Process immunity loss (recovered -> susceptible)
     process_immunity_loss!(population, alive, strain, model.immunity_loss)
 
-    # Process mortality from infection (base mortality handled separately)
+    # Process mortality from infection
     process_disease_mortality!(population, alive, strain, model.mortality, mortality_list)
 end
 
 """
     process_infections!(population::Population, alive::Vector{Bool}, strain::Int,
-                       transmission_rate::Float64, interactions::Vector{Float64})
+                       transmission_rate::Float64, interactions::Vector{Float64}, transmission_type::Symbol)
 
 Process direct infections for SI/SIR models (susceptible to infected, with no latent period). Interactions with other strains in potential new hosts affect the transmission rate.
 """
 function process_infections!(population::Population, alive::Vector{Bool}, strain::Int,
-    transmission_rate::Float64, interactions::Vector{Float64})
+    transmission_rate::Float64, interactions::Vector{Float64}, transmission_type::Symbol)
     transmission_rate <= 0 && return
 
     # Pre-allocate index vectors
@@ -223,7 +223,11 @@ function process_infections!(population::Population, alive::Vector{Bool}, strain
 
     for s_idx in susceptible_indices
         # Get the baseline infection pressure
-        infection_pressure = transmission_rate * n_infected / n_pop
+        if transmission_type == :density
+            infection_pressure = transmission_rate * n_infected / n_pop
+        else
+            infection_pressure = transmission_rate
+        end
 
         # Adjust for coinfection interactions
         for other_strain in 1:length(interactions)
@@ -244,12 +248,12 @@ end
 
 """
     process_exposures!(population::Population, alive::Vector{Bool}, strain::Int,
-                      transmission_rate::Float64, interactions::Vector{Float64})
+                      transmission_rate::Float64, interactions::Vector{Float64}, transmission_type::Symbol)
 
 Process exposures for SEIR/SEIRS models (susceptible to exposed). If a potential new host is infected with another strain, interactions between strains affect the infection pressure.
 """
 function process_exposures!(population::Population, alive::Vector{Bool}, strain::Int,
-    transmission_rate::Float64, interactions::Vector{Float64})
+    transmission_rate::Float64, interactions::Vector{Float64}, transmission_type::Symbol)
     transmission_rate <= 0 && return
 
     # Pre-allocate index vectors
@@ -277,7 +281,11 @@ function process_exposures!(population::Population, alive::Vector{Bool}, strain:
 
     for s_idx in susceptible_indices
         # Get the baseline infection pressure
-        infection_pressure = transmission_rate * n_infected / n_pop
+        if transmission_type == :density
+            infection_pressure = transmission_rate * n_infected / n_pop
+        else
+            infection_pressure = transmission_rate
+        end
 
         # Adjust for coinfection interactions
         for other_strain in 1:length(interactions)
@@ -389,7 +397,7 @@ end
 
 Create an efficient copy of a population optimized for BitMatrix copying.
 """
-function copy_population(pop::Population)
+function copy_population(pop::Population)::Population
     n_individuals = length(pop)
     if n_individuals == 0
         return Population(Individual[])
@@ -410,7 +418,7 @@ end
 
 Create an efficient copy of an individual, optimized for BitMatrix copying.
 """
-function copy_individual(ind::Individual)
+function copy_individual(ind::Individual)::Individual
     n_strains, n_states = size(ind.state)
     new_state = BitMatrix(undef, n_strains, n_states)
     copyto!(new_state.chunks, ind.state.chunks)
@@ -430,15 +438,15 @@ function remove_dead_individuals!(population::Population, mortality_list::Set{In
 
     empty!(alive_indices)
     n_total = length(population)
-    
+
     for i in 1:n_total
         if i ∉ mortality_list
             push!(alive_indices, i)
         end
     end
-    
+
     n_alive = length(alive_indices)
-    
+
     for (new_idx, old_idx) in enumerate(alive_indices)
         if new_idx != old_idx
             population.individuals[new_idx] = population.individuals[old_idx]

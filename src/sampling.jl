@@ -30,7 +30,7 @@ detections = sample_populations(
 )
 ```
 """
-function sample_populations(populations::Vector{Population}, params::SamplingParameters)
+function sample_populations(populations::Vector{Population}, params::SamplingParameters)::Matrix{Bool}
     isempty(populations) && return Matrix{Bool}(undef, 0, 0)
 
     # Get dimensions

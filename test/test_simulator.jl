@@ -934,10 +934,6 @@
         # Create a complex scenario with multiple strains, demographics, and introductions
         complex_pop = Population([Individual(4, rand(18:50)) for _ in 1:200])
 
-        # Seed initial infections for two strains
-        complex_pop[1][1, 1] = false; complex_pop[1][1, 3] = true  # Strain 1
-        complex_pop[2][2, 1] = false; complex_pop[2][2, 3] = true  # Strain 2
-
         # Mix of disease models
         complex_models = [
             SIModel(0.1, 0.01),      # Strain 1: SI

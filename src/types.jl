@@ -207,6 +207,7 @@ struct SimulationParameters
 	age_maturity::Int
 	introduction::Symbol
 	time_steps::Int
+	transmission_type::Symbol
 
 	function SimulationParameters(
 		models::Vector{<:DiseaseModel},
@@ -216,6 +217,7 @@ struct SimulationParameters
 		age_maturity::Int,
 		introduction::Symbol,
 		time_steps::Int,
+		transmission_type::Symbol = :frequency,
 	)
 		n_strains = length(models)
 		size(interactions) == (n_strains, n_strains) ||
@@ -227,8 +229,10 @@ struct SimulationParameters
 		introduction in (:simultaneous, :random, :none) ||
 			throw(ArgumentError("Introduction ($introduction) must be :simultaneous, :random, or :none"))
 		time_steps ≥ 1 || throw(ArgumentError("Time steps ($time_steps) must be positive"))
+		transmission_type in (:density, :frequency) ||
+			throw(ArgumentError("Transmission type ($transmission_type) must be :density or :frequency"))
 
-		new(models, interactions, base_mortality, fecundity, age_maturity, introduction, time_steps)
+		new(models, interactions, base_mortality, fecundity, age_maturity, introduction, time_steps, transmission_type)
 	end
 end
 

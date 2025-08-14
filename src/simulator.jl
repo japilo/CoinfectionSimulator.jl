@@ -9,7 +9,7 @@ using Distributions: Binomial, Poisson
 """
     simulate(initial_population::Population, params::SimulationParameters) -> Vector{Population}
 
-    Simulates multiple pathogen strains spreading through a host population with coinfection dynamics among the strains. Density-dependent transmission is implemented.
+    Simulates multiple pathogen strains spreading through a host population with coinfection dynamics among the strains. Supports both density-dependent and frequency-dependent transmission.
 
 # Arguments
 - `initial_population::Population`: Initial population of individuals
@@ -21,16 +21,19 @@ using Distributions: Binomial, Poisson
     - `age_maturity::Int`: Age (in time steps) at which individuals can reproduce
     - `introduction::Symbol`: How strains are introduced (:simultaneous, :random, or :none)
     - `time_steps::Int`: Number of time steps to simulate
+    - `transmission_type::Symbol`: Type of transmission (:density or :frequency, defaults to :frequency)
 
 # Returns
 Vector of population states at each time step (Vector{Population})
 """
-function simulate(initial_population::Population, params::SimulationParameters)
+function simulate(initial_population::Population, params::SimulationParameters)::Vector{Population}
+    # Set up results collection
     n_steps = params.time_steps
     result_pop = Vector{Population}(undef, n_steps)
-
     working_pop = copy_population(initial_population)
     result_pop[1] = copy_population(working_pop)
+    mortality_list = Set{Int}()
+    alive_indices = Vector{Int}()
 
     # Strain introduction timing
     n_strains = isempty(initial_population) ? length(params.models) : size(initial_population[1], 1)
@@ -41,16 +44,9 @@ function simulate(initial_population::Population, params::SimulationParameters)
     else # :none
         zeros(Int, n_strains)
     end
-    
-    mortality_list = Set{Int}()
-    max_expected_pop = length(working_pop) * 2  # Account for population growth
-    sizehint!(mortality_list, max(10, max_expected_pop ÷ 20))
-    
-    # Pre-allocate reusable vectors for mortality processing
-    alive_indices = Vector{Int}()
-    sizehint!(alive_indices, max_expected_pop)
 
     for t in 1:(n_steps-1)
+        # Garbage collection
         empty!(mortality_list)
 
         # Introduce infections
@@ -58,7 +54,7 @@ function simulate(initial_population::Population, params::SimulationParameters)
             introduce_infections!(working_pop, t, intro_step)
         end
 
-        # Breeding (may grow population)
+        # Breeding
         breeding!(working_pop, params.fecundity, params.age_maturity)
 
         # Process disease dynamics
