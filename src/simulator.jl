@@ -26,10 +26,11 @@ using Distributions: Binomial, Poisson
 Vector of population states at each time step (Vector{Population})
 """
 function simulate(initial_population::Population, params::SimulationParameters)
-    # Initialize results
     n_steps = params.time_steps
     result_pop = Vector{Population}(undef, n_steps)
-    result_pop[1] = deepcopy(initial_population)
+
+    working_pop = copy_population(initial_population)
+    result_pop[1] = copy_population(working_pop)
 
     # Strain introduction timing
     n_strains = isempty(initial_population) ? length(params.models) : size(initial_population[1], 1)
@@ -40,36 +41,39 @@ function simulate(initial_population::Population, params::SimulationParameters)
     else # :none
         zeros(Int, n_strains)
     end
+    
+    mortality_list = Set{Int}()
+    max_expected_pop = length(working_pop) * 2  # Account for population growth
+    sizehint!(mortality_list, max(10, max_expected_pop ÷ 20))
+    
+    # Pre-allocate reusable vectors for mortality processing
+    alive_indices = Vector{Int}()
+    sizehint!(alive_indices, max_expected_pop)
 
-    # Time loop
     for t in 1:(n_steps-1)
-        current_pop = deepcopy(result_pop[t])
+        empty!(mortality_list)
 
         # Introduce infections
         if any(intro_step .== t)
-            introduce_infections!(current_pop, t, intro_step)
+            introduce_infections!(working_pop, t, intro_step)
         end
 
-        # Breeding
-        breeding!(current_pop, params.fecundity, params.age_maturity)
+        # Breeding (may grow population)
+        breeding!(working_pop, params.fecundity, params.age_maturity)
 
         # Process disease dynamics
-        mortality_list = Set{Int}()
-        process_disease_dynamics!(current_pop, params, mortality_list)
+        process_disease_dynamics!(working_pop, params, mortality_list)
 
-        # Apply mortality
+        # Remove dead individuals
         if !isempty(mortality_list)
-            alive_mask = [i ∉ mortality_list for i in 1:length(current_pop)]
-            current_pop = Population(current_pop.individuals[alive_mask])
+            remove_dead_individuals!(working_pop, mortality_list, alive_indices)
         end
 
-        # Age surviving individuals
-        for ind in current_pop
-            ind.age += 1
-        end
+        # Age surviving individuals in-place
+        age_population!(working_pop)
 
-        # Store results
-        result_pop[t+1] = current_pop
+        # Store snapshot of current state
+        result_pop[t+1] = copy_population(working_pop)
     end
 
     return result_pop

@@ -26,7 +26,24 @@ Pkg.add(url="https://github.com/japilo/CoinfectionSimulator.jl")
 
 ## Performance
 
-The basic example in `examples/basic_example.jl` runs in 13.97 ms on a 2024 MacBook Pro with an M4 chip and 10 cores.
+Here are some performance benchmarks on a 2024 MacBook Pro with an M4 chip and 10 cores, using reasonable simulation parameters (similar base mortality and fecundity in the host population, low virulence strains):
+
+Population Size (100 timesteps)
+----------------------------------------------------------------------
+100  individuals:    0.85 ms |    5.2 MB
+250  individuals:    2.27 ms |   13.5 MB
+500  individuals:    5.15 ms |   26.7 MB
+1000 individuals:   18.83 ms |   54.4 MB
+2000 individuals:   41.06 ms |  112.0 MB
+
+Time Steps (500 individuals)
+----------------------------------------------------------------------
+50 steps:      2.32 ms |    11.6 MB
+100 steps:     4.60 ms |    23.6 MB
+200 steps:    10.07 ms |    45.5 MB
+300 steps:    23.48 ms |    64.9 MB
+400 steps:    43.24 ms |   100.2 MB
+500 steps:    46.70 ms |   122.2 MB
 
 ## Quick Start
 
