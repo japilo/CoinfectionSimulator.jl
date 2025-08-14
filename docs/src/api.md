@@ -34,6 +34,7 @@ SamplingParameters
 simulate
 sample_populations
 create_interaction_matrix
+```
 
 ## Helper Functions
 
