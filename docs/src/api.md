@@ -4,28 +4,56 @@ CurrentModule = CoinfectionSimulator
 
 # API Reference
 
+## Disease Model Types
+
+```@docs
+DiseaseModel
+SIModel
+SIRModel
+SEIRModel
+SEIRSModel
+```
+
+## Population Types
+
+```@docs
+Individual
+Population
+```
+
+## Parameter Types
+
+```@docs
+SimulationParameters
+SamplingParameters
+```
+
 ## Main Functions
 
 ```@docs
-coinfection_simulator
-virtual_ecologist_sample
-prep_interaction_matrix
+simulate
+sample_populations
+create_interaction_matrix
 ```
 
-## Utility Functions
+## Helper Functions
 
 ```@docs
-infect
-handle_si_disease
-handle_sir_disease
-handle_seir_disease
-handle_seirs_disease
-handle_infection
-handle_exposure
-handle_exposed_infection
-handle_recovery
-handle_immunity_loss
-handle_infected_death
+age_population!
+apply_base_mortality!
+breeding!
+copy_individual
+copy_population
+introduce_infections!
+process_disease_mortality!
+process_disease_dynamics!
+process_strain!
+process_exposures!
+process_infections!
+process_recovery!
+process_latent_infections!
+process_immunity_loss!
+remove_dead_individuals!
 ```
 
 ## Index

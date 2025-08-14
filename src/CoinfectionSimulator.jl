@@ -1,17 +1,30 @@
 module CoinfectionSimulator
 
+# Standard library imports
 using Random
+using LinearAlgebra
+
+# External dependencies
 using Distributions
 using StatsBase
 using DataFrames
 
-# Export main functions
-export coinfection_simulator, virtual_ecologist_sample, prep_interaction_matrix
+# Type definitions
+include("types.jl")
 
-# Include submodules
+# Core functionality
+include("simulation_helpers.jl")
 include("simulator.jl")
 include("sampling.jl")
 include("data_prep.jl")
-include("utils.jl")
+
+# Export main types
+export DiseaseModel, SIModel, SIRModel, SEIRModel, SEIRSModel
+export Population, Individual, SimulationParameters, SamplingParameters
+
+# Export main functions
+export simulate, sample_populations, create_interaction_matrix
+
+
 
 end # module CoinfectionSimulator

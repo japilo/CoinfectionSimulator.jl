@@ -1,147 +1,137 @@
-@testset "Virtual Ecologist Sampling Tests" begin
+@testset "Population Sampling Tests" begin
+    @testset "Basic Sampling" begin
+        # Create a test population with known infection status
+        Random.seed!(123)
 
-	@testset "Input validation tests" begin
-		# Test empty virtual population
-		@test_throws AssertionError virtual_ecologist_sample(
-			virtual_population = Vector{Vector{Matrix{Bool}}}(),
-			proportion_sampled = 0.5,
-			false_positive_rate = 0.1,
-			false_negative_rate = 0.1,
-		)
+        # Create a series of populations across 3 time steps
+        populations = Vector{Population}(undef, 3)
 
-		# Test invalid proportion_sampled
-		valid_pop = [[rand(Bool, 10, 4) for _ in 1:5] for _ in 1:3]
-		@test_throws AssertionError virtual_ecologist_sample(
-			virtual_population = valid_pop,
-			proportion_sampled = -0.1,
-			false_positive_rate = 0.1,
-			false_negative_rate = 0.1,
-		)
+        # Time step 1: 10 individuals, 2 strains, 2 infected with strain 1, 1 infected with strain 2
+        inds1 = Vector{Individual}(undef, 10)
+        for i in 1:10
+            if i <= 2
+                # First two individuals infected with strain 1
+                state = BitMatrix([false false true false; true false false false])
+            elseif i == 3
+                # Third individual infected with strain 2
+                state = BitMatrix([true false false false; false false true false])
+            else
+                # Others all susceptible
+                state = BitMatrix([true false false false; true false false false])
+            end
+            inds1[i] = Individual(state, 10)
+        end
+        populations[1] = Population(inds1)
 
-		@test_throws AssertionError virtual_ecologist_sample(
-			virtual_population = valid_pop,
-			proportion_sampled = 1.1,
-			false_positive_rate = 0.1,
-			false_negative_rate = 0.1,
-		)
+        # Time step 2: Same but with more infections
+        inds2 = Vector{Individual}(undef, 10)
+        for i in 1:10
+            if i <= 4
+                # Four individuals infected with strain 1
+                state = BitMatrix([false false true false; true false false false])
+            elseif i <= 6
+                # Two individuals infected with strain 2
+                state = BitMatrix([true false false false; false false true false])
+            elseif i == 7
+                # One individual co-infected
+                state = BitMatrix([false false true false; false false true false])
+            else
+                # Others all susceptible
+                state = BitMatrix([true false false false; true false false false])
+            end
+            inds2[i] = Individual(state, 10)
+        end
+        populations[2] = Population(inds2)
 
-		# Test invalid false_positive_rate
-		@test_throws AssertionError virtual_ecologist_sample(
-			virtual_population = valid_pop,
-			proportion_sampled = 0.5,
-			false_positive_rate = -0.1,
-			false_negative_rate = 0.1,
-		)
+        # Time step 3: Even more infections
+        inds3 = Vector{Individual}(undef, 10)
+        for i in 1:10
+            if i <= 5
+                # Five individuals infected with strain 1
+                state = BitMatrix([false false true false; true false false false])
+            elseif i <= 8
+                # Three individuals infected with strain 2
+                state = BitMatrix([true false false false; false false true false])
+            else
+                # Two individuals co-infected
+                state = BitMatrix([false false true false; false false true false])
+            end
+            inds3[i] = Individual(state, 10)
+        end
+        populations[3] = Population(inds3)
 
-		# Test invalid false_negative_rate
-		@test_throws AssertionError virtual_ecologist_sample(
-			virtual_population = valid_pop,
-			proportion_sampled = 0.5,
-			false_positive_rate = 0.1,
-			false_negative_rate = 1.1,
-		)
-	end
+        # Perfect sampling (100% sampled, no errors)
+        params_perfect = SamplingParameters(1.0, 0.0, 0.0)
+        results_perfect = sample_populations(populations, params_perfect)
 
-	@testset "Basic functionality tests" begin
-		Random.seed!(42)
+        @test size(results_perfect) == (3, 2)  # 3 timesteps, 2 strains
 
-		# Create test data
-		n_strains = 5
-		n_individuals = 10
-		n_timesteps = 3
+        # Check perfect detection
+        @test results_perfect[1, 1] == true  # Strain 1 detected at timestep 1
+        @test results_perfect[1, 2] == true  # Strain 2 detected at timestep 1
+        @test results_perfect[2, 1] == true  # Strain 1 detected at timestep 2
+        @test results_perfect[2, 2] == true  # Strain 2 detected at timestep 2
+        @test results_perfect[3, 1] == true  # Strain 1 detected at timestep 3
+        @test results_perfect[3, 2] == true  # Strain 2 detected at timestep 3
 
-		virtual_pop = Vector{Vector{Matrix{Bool}}}()
-		for t in 1:n_timesteps
-			timestep_data = Vector{Matrix{Bool}}()
-			for i in 1:n_individuals
-				individual_data = rand(Bool, n_strains, 4)
-				push!(timestep_data, individual_data)
-			end
-			push!(virtual_pop, timestep_data)
-		end
+        # Partial sampling with errors
+        # This is somewhat probabilistic, so we use a fixed seed
+        Random.seed!(456)
+        params_partial = SamplingParameters(0.3, 0.05, 0.2)
+        results_partial = sample_populations(populations, params_partial)
 
-		# Test basic execution
-		result = virtual_ecologist_sample(
-			virtual_population = virtual_pop,
-			proportion_sampled = 0.5,
-			false_positive_rate = 0.0,
-			false_negative_rate = 0.0,
-		)
+        @test size(results_partial) == (3, 2)
 
-		@test size(result) == (n_timesteps, n_strains)
-		@test eltype(result) == Bool
-	end
+        # With partial sampling, results are probabilistic, but we can verify
+        # that sampling at least detected strains that were common in the population
+        @test any(results_partial[2:3, 1]) == true  # Strain 1 should be detected in at least one later timestep
 
-	@testset "Edge case tests" begin
-		Random.seed!(123)
+        # Test with empty population
+        empty_pop = Population(Individual[])
+        populations_empty = [empty_pop, empty_pop]
+        results_empty = sample_populations(populations_empty, params_perfect)
+        @test size(results_empty) == (2, 0)  # 2 timesteps, 0 strains
+    end
 
-		# Test with proportion_sampled = 0 (should still sample at least 1)
-		virtual_pop = Vector{Vector{Matrix{Bool}}}([[rand(Bool, 5, 4) for _ in 1:10] for _ in 1:2])
-		result = virtual_ecologist_sample(
-			virtual_population = virtual_pop,
-			proportion_sampled = 0.0,
-			false_positive_rate = 0.0,
-			false_negative_rate = 0.0,
-		)
-		@test size(result) == (2, 5)
+    @testset "Parameter Validation" begin
+        # Test invalid parameters
+        @test_throws ArgumentError SamplingParameters(-0.1, 0.0, 0.0)  # Negative proportion
+        @test_throws ArgumentError SamplingParameters(1.1, 0.0, 0.0)   # Proportion > 1
+        @test_throws ArgumentError SamplingParameters(0.5, -0.1, 0.0)  # Negative false positive
+        @test_throws ArgumentError SamplingParameters(0.5, 1.1, 0.0)   # False positive > 1
+        @test_throws ArgumentError SamplingParameters(0.5, 0.0, -0.1)  # Negative false negative
+        @test_throws ArgumentError SamplingParameters(0.5, 0.0, 1.1)   # False negative > 1
+    end
 
-		# Test with proportion_sampled = 1
-		result = virtual_ecologist_sample(
-			virtual_population = virtual_pop,
-			proportion_sampled = 1.0,
-			false_positive_rate = 0.0,
-			false_negative_rate = 0.0,
-		)
-		@test size(result) == (2, 5)
+    @testset "False Positive and Negative Rates" begin
+        # Create a controlled population to test false positive/negative
+        Random.seed!(789)
 
-		# Test with false_positive_rate = 1 and no true positives
-		all_false_pop = Vector{Vector{Matrix{Bool}}}([[falses(3, 4) for _ in 1:5] for _ in 1:2])
-		result = virtual_ecologist_sample(
-			virtual_population = all_false_pop,
-			proportion_sampled = 1.0,
-			false_positive_rate = 1.0,
-			false_negative_rate = 0.0,
-		)
-		@test all(result .== true)
+        # Create a population where all individuals are infected with strain 1 only
+        all_strain1 = Population([
+            Individual(BitMatrix([false false true false; true false false false]), 1)
+            for _ in 1:100
+        ])
 
-		# Test with false_negative_rate = 1 and all true positives
-		all_true_pop = [[trues(3, 4) for _ in 1:5] for _ in 1:2]
-		# Set infected column (column 3) to true
-		for timestep in all_true_pop
-			for individual in timestep
-				individual[:, 3] .= true
-			end
-		end
-		result = virtual_ecologist_sample(
-			virtual_population = all_true_pop,
-			proportion_sampled = 1.0,
-			false_positive_rate = 0.0,
-			false_negative_rate = 1.0,
-		)
-		@test all(result .== false)
-	end
+        # Create a population where no individuals are infected
+        none_infected = Population([
+            Individual(BitMatrix([true false false false; true false false false]), 1)
+            for _ in 1:100
+        ])
 
-	@testset "Output consistency tests" begin
-		Random.seed!(456)
+        # Test false negative rate
+        params_fn = SamplingParameters(1.0, 0.0, 0.3)  # 30% false negative, no false positive
+        result_fn = sample_populations([all_strain1], params_fn)
+        @test result_fn[1, 1] == true  # Should still detect strain 1 despite false negatives
+        @test result_fn[1, 2] == false # Should not detect strain 2
 
-		# Test that output dimensions are consistent
-		virtual_pop = [[rand(Bool, 8, 4) for _ in 1:12] for _ in 1:4]
+        # Test false positive rate
+        Random.seed!(790)  # Set different seed for reproducibility
+        params_fp = SamplingParameters(1.0, 0.3, 0.0)  # 30% false positive, no false negative
+        result_fp = sample_populations([none_infected], params_fp)
+        # With 100 individuals and 30% false positive rate, we should detect some false positives
+        @test result_fp[1, 1] || result_fp[1, 2]
+    end
 
-		result1 = virtual_ecologist_sample(
-			virtual_population = virtual_pop,
-			proportion_sampled = 0.3,
-			false_positive_rate = 0.05,
-			false_negative_rate = 0.1,
-		)
 
-		result2 = virtual_ecologist_sample(
-			virtual_population = virtual_pop,
-			proportion_sampled = 0.7,
-			false_positive_rate = 0.2,
-			false_negative_rate = 0.05,
-		)
-
-		@test size(result1) == size(result2) == (4, 8)
-		@test eltype(result1) == eltype(result2) == Bool
-	end
 end

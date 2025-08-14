@@ -7,7 +7,7 @@
 
 A Julia package for simulating multi-strain coinfection dynamics in host populations with imperfect ecological sampling.
 
-There are many ways to simulate compartmental disease models in Julia. What CoinfectionSimulator.jl brings to the table is community ecology interactions between pathogens that circulate in a host population. The simulator works off of the assumption that pathogens can affect the probability of other pathogens successfully infecting the host, either by facilitating or inhibiting their establishment. The user can specify all possible pairwise interactions between pathogens using an interaction matrix, which can include or exclude priority effects.
+There are many ways to simulate compartmental disease models in Julia. What CoinfectionSimulator.jl brings to the table is community ecology interactions between pathogens that circulate in a host population. The simulator works off of the assumption that pathogens can affect the probability of other pathogens successfully infecting the host, either by facilitating or inhibiting their establishment. The user can specify all possible pairwise interactions between pathogens using an interaction matrix, which can include or exclude priority effects. In its current form, the simulator assumes density-dependent transmission.
 
 ## Features
 
@@ -26,7 +26,28 @@ Pkg.add(url="https://github.com/japilo/CoinfectionSimulator.jl")
 
 ## Performance
 
-The basic example in `examples/basic_example.jl` runs in 13.97 ms on a 2024 MacBook Pro with an M4 chip and 10 cores.
+Here are some performance benchmarks on a 2024 MacBook Pro with an M4 chip and 10 cores, using reasonable simulation parameters (similar base mortality and fecundity in the host population, low virulence strains):
+
+### Population Size (100 timesteps)
+
+| Population Size | Time     | Memory   |
+|-----------------|----------|----------|
+| 100             | 0.85 ms  | 5.2 MB   |
+| 250             | 2.27 ms  | 13.5 MB  |
+| 500             | 5.15 ms  | 26.7 MB  |
+| 1000            | 18.83 ms | 54.4 MB  |
+| 2000            | 41.06 ms | 112.0 MB |
+
+### Time Steps (500 individuals)
+
+| Time Steps | Time      | Memory    |
+|------------|-----------|-----------|
+| 50         | 2.32 ms   | 11.6 MB   |
+| 100        | 4.60 ms   | 23.6 MB   |
+| 200        | 10.07 ms  | 45.5 MB   |
+| 300        | 23.48 ms  | 64.9 MB   |
+| 400        | 43.24 ms  | 100.2 MB  |
+| 500        | 46.70 ms  | 122.2 MB  |
 
 ## Quick Start
 
@@ -37,85 +58,86 @@ using Random
 # Set up initial population (100 individuals, 2 strains)
 n_individuals = 100
 n_strains = 2
-initial_pop = [falses(n_strains, 4) for _ in 1:n_individuals]  # [S,E,I,R] states
 
-# Everyone starts susceptible
-for individual in initial_pop
-    individual[:, 1] .= true  # Susceptible
-end
+# Create disease models
+models = [SIModel(0.3, 0.02), SIModel(0.4, 0.02)]
 
-# Introduce initial infections
-initial_pop[1][1, 1] = false  # Individual 1, strain 1: not susceptible
-initial_pop[1][1, 3] = true   # Individual 1, strain 1: infected
+# Create initial population
+pop = Population([Individual(BitMatrix([true false true false]), 20) for _ in 1:100])
 
 # Set up simulation parameters
-ages = rand(1:50, n_individuals)  # Random ages
-interactions = [1.0 0.8; 0.8 1.0]  # Interaction matrix
-disease_types = ["si", "si"]  # Both strains use SI model
-transmission = [0.3, 0.4]  # Transmission rates
+params = SimulationParameters(
+    models,                  # Disease models
+    [1.0 0.8; 0.8 1.0],      # Interaction matrix
+    0.01,                    # Base mortality
+    0.1,                     # Fecundity
+    30,                      # Age of maturity
+    :simultaneous,           # Introduction type
+    50,                      # Time steps
+    :frequency               # Transmission type (:frequency or :density)
+)
 
 # Run simulation
-results = coinfection_simulator(
-    initial_pop=initial_pop,
-    ages=ages,
-    interactions=interactions,
-    disease_type=disease_types,
-    base_mortality=0.01,
-    disease_mortality=[0.02, 0.02],
-    fecundity=0.1,
-    transmission=transmission,
-    time_steps=50,
-    age_maturity=18
-)
-
-populations, age_vectors = results
+populations, age_vectors = simulate(population, params)
 
 # Sample with virtual ecologist
-detections = virtual_ecologist_sample(
-    virtual_population=populations,
-    proportion_sampled=0.3,
-    false_positive_rate=0.05,
-    false_negative_rate=0.1
-)
+sampling_params = SamplingParameters(0.3, 0.05, 0.1)
+detections = sample_populations(populations, sampling_params)
 
 println("Detected strains over time:")
 println(size(detections))  # (time_steps, n_strains)
 ```
 
-## Main Functions
+## Main Types and Functions
 
-### `coinfection_simulator`
+### Types
+
+#### Disease Models
+- `SIModel`: Susceptible → Infected
+- `SIRModel`: Susceptible → Infected → Recovered
+- `SEIRModel`: Susceptible → Exposed → Infected → Recovered
+- `SEIRSModel`: Susceptible → Exposed → Infected → Recovered → Susceptible
+
+#### Core Types
+- `Individual`: Represents a single host with an age in days and disease states for multiple strains
+- `Population`: Collection of individuals
+- `SimulationParameters`: Configuration for a simulation run
+- `SamplingParameters`: Configuration for virtual ecologist sampling
+
+### Primary Functions
+
+#### `simulate`
 
 Simulates multi-strain coinfection dynamics in a host population.
 
-**Key parameters:**
-- `initial_pop`: Vector of individual disease state matrices
-- `interactions`: Strain interaction matrix
-- `disease_type`: Vector of disease model types ("si", "sir", "seir", "seirs")
-- `transmission`: Vector of transmission rates
-- `time_steps`: Number of simulation time steps
+**Parameters:**
+- `initial_population`: Population of individuals
+- `params`: SimulationParameters object
 
-### `virtual_ecologist_sample`
+#### `sample_populations`
 
 Simulates ecological sampling with imperfect detection.
 
-**Key parameters:**
-- `virtual_population`: Simulation results from `coinfection_simulator`
-- `proportion_sampled`: Fraction of population sampled
-- `false_positive_rate`: Probability of false positive detection
-- `false_negative_rate`: Probability of false negative detection
+**Parameters:**
+- `populations`: Vector of populations across time steps
+- `params`: SamplingParameters object
 
-### `prep_interaction_matrix`
+#### `create_interaction_matrix`
 
 Generates interaction matrices for simulation experiments.
 
-**Key parameters:**
+**Parameters:**
 - `df`: DataFrame with columns for `interaction_strength`, `cf_ratio`, `priority_effects`, `strains`
+OR
+- `strains`: Number of strains
+- `priority_effects`: Whether to use asymmetric interactions
+- `interaction_strength`: Strength of strain interactions
+- `cf_ratio`: Ratio of competition to facilitation
 
 ## Disease Models
 
 - **SI**: Susceptible → Infected
-- **SIR**: Susceptible → Infected → Recovered  
+- **SIR**: Susceptible → Infected → Recovered
 - **SEIR**: Susceptible → Exposed → Infected → Recovered
 - **SEIRS**: Susceptible → Exposed → Infected → Recovered → Susceptible
 
