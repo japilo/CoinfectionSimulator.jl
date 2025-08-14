@@ -43,48 +43,48 @@ matrix = create_interaction_matrix(2, "asymmetric", 0.3, cf_ratio=0.8)
 ```
 """
 function create_interaction_matrix(
-    strains::Int,
-    priority_effects::Bool,
-    interaction_strength::Float64;
-    cf_ratio::Float64=0.5
+	strains::Int,
+	priority_effects::Bool,
+	interaction_strength::Float64;
+	cf_ratio::Float64 = 0.5,
 )
-    strains > 0 || throw(ArgumentError("Number of strains must be positive"))
-    0 ≤ interaction_strength ≤ 1 || throw(ArgumentError("Interaction strength must be between 0 and 1"))
-    0 ≤ cf_ratio ≤ 1 || throw(ArgumentError("Facilitation/competition ratio must be between 0 and 1"))
+	strains > 0 || throw(ArgumentError("Number of strains must be positive"))
+	0 ≤ interaction_strength ≤ 1 || throw(ArgumentError("Interaction strength must be between 0 and 1"))
+	0 ≤ cf_ratio ≤ 1 || throw(ArgumentError("Facilitation/competition ratio must be between 0 and 1"))
 
-    # Initialize matrix with ones on diagonal
-    matrix = Matrix{Float64}(I, strains, strains)
+	# Initialize matrix with ones on diagonal
+	matrix = Matrix{Float64}(I, strains, strains)
 
-    # If interaction strength is 0, return the identity matrix
-    interaction_strength ≈ 0.0 && return matrix
+	# If interaction strength is 0, return the identity matrix
+	interaction_strength ≈ 0.0 && return matrix
 
-    # Create off-diagonal indices
-    off_diag_indices = [(i, j) for i in 1:strains for j in 1:strains if i != j]
+	# Create off-diagonal indices
+	off_diag_indices = [(i, j) for i in 1:strains for j in 1:strains if i != j]
 
-    # Sample facilitative indices
-    n_facilitative = round(Int, cf_ratio * length(off_diag_indices))
-    fac_indices = StatsBase.sample(off_diag_indices, n_facilitative, replace=false)
-    comp_indices = setdiff(off_diag_indices, fac_indices)
+	# Sample facilitative indices
+	n_facilitative = round(Int, cf_ratio * length(off_diag_indices))
+	fac_indices = StatsBase.sample(off_diag_indices, n_facilitative, replace = false)
+	comp_indices = setdiff(off_diag_indices, fac_indices)
 
-    # Fill matrix with interaction values
-    for (i, j) in fac_indices
-        matrix[i, j] = rand(Uniform(1.0, 1 + interaction_strength))
-    end
+	# Fill matrix with interaction values
+	for (i, j) in fac_indices
+		matrix[i, j] = rand(Uniform(1.0, 1 + interaction_strength))
+	end
 
-    for (i, j) in comp_indices
-        matrix[i, j] = rand(Uniform(1 - interaction_strength, 1.0))
-    end
+	for (i, j) in comp_indices
+		matrix[i, j] = rand(Uniform(1 - interaction_strength, 1.0))
+	end
 
-    # For symmetric matrices, ensure M[i,j] = M[j,i]
-    if !priority_effects
-        for i in 1:strains
-            for j in (i+1):strains
-                matrix[j, i] = matrix[i, j]
-            end
-        end
-    end
+	# For symmetric matrices, ensure M[i,j] = M[j,i]
+	if !priority_effects
+		for i in 1:strains
+			for j in (i+1):strains
+				matrix[j, i] = matrix[i, j]
+			end
+		end
+	end
 
-    return matrix
+	return matrix
 end
 
 """
@@ -132,23 +132,23 @@ matrices = create_interaction_matrix(df)
 ```
 """
 function create_interaction_matrix(df::DataFrame)
-    # Validate required columns
-    required_columns = [:interaction_strength, :cf_ratio, :priority_effects, :strains]
-    for col in required_columns
-        if !hasproperty(df, col)
-            throw(ArgumentError("DataFrame must contain column: $col"))
-        end
-    end
+	# Validate required columns
+	required_columns = [:interaction_strength, :cf_ratio, :priority_effects, :strains]
+	for col in required_columns
+		if !hasproperty(df, col)
+			throw(ArgumentError("DataFrame must contain column: $col"))
+		end
+	end
 
-    # Create matrices for each row
-    matrices = map(eachrow(df)) do row
-        create_interaction_matrix(
-            row.strains,
-            row.priority_effects,
-            row.interaction_strength;
-            cf_ratio=row.cf_ratio
-        )
-    end
+	# Create matrices for each row
+	matrices = map(eachrow(df)) do row
+		create_interaction_matrix(
+			row.strains,
+			row.priority_effects,
+			row.interaction_strength;
+			cf_ratio = row.cf_ratio,
+		)
+	end
 
-    return matrices
+	return matrices
 end

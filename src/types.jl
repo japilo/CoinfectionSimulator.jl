@@ -1,12 +1,12 @@
 """
-    DiseaseModel
+	DiseaseModel
 
 Abstract supertype for all disease models in the simulation.
 """
 abstract type DiseaseModel end
 
 """
-    SIModel <: DiseaseModel
+	SIModel <: DiseaseModel
 
 Susceptible-Infected (SI) disease model.
 
@@ -15,18 +15,18 @@ Susceptible-Infected (SI) disease model.
 - `mortality::Float64`: Additional mortality rate due to infection
 """
 struct SIModel <: DiseaseModel
-    transmission::Float64
-    mortality::Float64
+	transmission::Float64
+	mortality::Float64
 
-    function SIModel(transmission::Float64, mortality::Float64)
-        0 ≤ transmission ≤ 1 || throw(ArgumentError("Transmission rate ($transmission) must be between 0 and 1"))
-        0 ≤ mortality ≤ 1 || throw(ArgumentError("Mortality rate ($mortality) must be between 0 and 1"))
-        new(transmission, mortality)
-    end
+	function SIModel(transmission::Float64, mortality::Float64)
+		0 ≤ transmission ≤ 1 || throw(ArgumentError("Transmission rate ($transmission) must be between 0 and 1"))
+		0 ≤ mortality ≤ 1 || throw(ArgumentError("Mortality rate ($mortality) must be between 0 and 1"))
+		new(transmission, mortality)
+	end
 end
 
 """
-    SIRModel <: DiseaseModel
+	SIRModel <: DiseaseModel
 
 Susceptible-Infected-Recovered (SIR) disease model.
 
@@ -36,20 +36,20 @@ Susceptible-Infected-Recovered (SIR) disease model.
 - `recovery::Float64`: Recovery probability
 """
 struct SIRModel <: DiseaseModel
-    transmission::Float64
-    mortality::Float64
-    recovery::Float64
+	transmission::Float64
+	mortality::Float64
+	recovery::Float64
 
-    function SIRModel(transmission::Float64, mortality::Float64, recovery::Float64)
-        0 ≤ transmission ≤ 1 || throw(ArgumentError("Transmission rate ($transmission) must be between 0 and 1"))
-        0 ≤ mortality ≤ 1 || throw(ArgumentError("Mortality rate ($mortality) must be between 0 and 1"))
-        0 ≤ recovery ≤ 1 || throw(ArgumentError("Recovery rate ($recovery) must be between 0 and 1"))
-        new(transmission, mortality, recovery)
-    end
+	function SIRModel(transmission::Float64, mortality::Float64, recovery::Float64)
+		0 ≤ transmission ≤ 1 || throw(ArgumentError("Transmission rate ($transmission) must be between 0 and 1"))
+		0 ≤ mortality ≤ 1 || throw(ArgumentError("Mortality rate ($mortality) must be between 0 and 1"))
+		0 ≤ recovery ≤ 1 || throw(ArgumentError("Recovery rate ($recovery) must be between 0 and 1"))
+		new(transmission, mortality, recovery)
+	end
 end
 
 """
-    SEIRModel <: DiseaseModel
+	SEIRModel <: DiseaseModel
 
 Susceptible-Exposed-Infected-Recovered (SEIR) disease model.
 
@@ -60,22 +60,22 @@ Susceptible-Exposed-Infected-Recovered (SEIR) disease model.
 - `latency::Int`: Number of time steps in exposed state
 """
 struct SEIRModel <: DiseaseModel
-    transmission::Float64
-    mortality::Float64
-    recovery::Float64
-    latency::Int
+	transmission::Float64
+	mortality::Float64
+	recovery::Float64
+	latency::Int
 
-    function SEIRModel(transmission::Float64, mortality::Float64, recovery::Float64, latency::Int)
-        0 ≤ transmission ≤ 1 || throw(ArgumentError("Transmission rate ($transmission) must be between 0 and 1"))
-        0 ≤ mortality ≤ 1 || throw(ArgumentError("Mortality rate ($mortality) must be between 0 and 1"))
-        0 ≤ recovery ≤ 1 || throw(ArgumentError("Recovery rate ($recovery) must be between 0 and 1"))
-        latency > 0 || throw(ArgumentError("Latency period ($latency) must be positive"))
-        new(transmission, mortality, recovery, latency)
-    end
+	function SEIRModel(transmission::Float64, mortality::Float64, recovery::Float64, latency::Int)
+		0 ≤ transmission ≤ 1 || throw(ArgumentError("Transmission rate ($transmission) must be between 0 and 1"))
+		0 ≤ mortality ≤ 1 || throw(ArgumentError("Mortality rate ($mortality) must be between 0 and 1"))
+		0 ≤ recovery ≤ 1 || throw(ArgumentError("Recovery rate ($recovery) must be between 0 and 1"))
+		latency > 0 || throw(ArgumentError("Latency period ($latency) must be positive"))
+		new(transmission, mortality, recovery, latency)
+	end
 end
 
 """
-    SEIRSModel <: DiseaseModel
+	SEIRSModel <: DiseaseModel
 
 Susceptible-Exposed-Infected-Recovered-Susceptible (SEIRS) disease model.
 
@@ -87,25 +87,25 @@ Susceptible-Exposed-Infected-Recovered-Susceptible (SEIRS) disease model.
 - `immunity_loss::Float64`: Probability of losing immunity
 """
 struct SEIRSModel <: DiseaseModel
-    transmission::Float64
-    mortality::Float64
-    recovery::Float64
-    latency::Int
-    immunity_loss::Float64
+	transmission::Float64
+	mortality::Float64
+	recovery::Float64
+	latency::Int
+	immunity_loss::Float64
 
-    function SEIRSModel(transmission::Float64, mortality::Float64, recovery::Float64,
-        latency::Int, immunity_loss::Float64)
-        0 ≤ transmission ≤ 1 || throw(ArgumentError("Transmission rate ($transmission) must be between 0 and 1"))
-        0 ≤ mortality ≤ 1 || throw(ArgumentError("Mortality rate ($mortality) must be between 0 and 1"))
-        0 ≤ recovery ≤ 1 || throw(ArgumentError("Recovery rate ($recovery) must be between 0 and 1"))
-        latency > 0 || throw(ArgumentError("Latency period ($latency) must be positive"))
-        0 ≤ immunity_loss ≤ 1 || throw(ArgumentError("Immunity loss rate ($immunity_loss) must be between 0 and 1"))
-        new(transmission, mortality, recovery, latency, immunity_loss)
-    end
+	function SEIRSModel(transmission::Float64, mortality::Float64, recovery::Float64,
+		latency::Int, immunity_loss::Float64)
+		0 ≤ transmission ≤ 1 || throw(ArgumentError("Transmission rate ($transmission) must be between 0 and 1"))
+		0 ≤ mortality ≤ 1 || throw(ArgumentError("Mortality rate ($mortality) must be between 0 and 1"))
+		0 ≤ recovery ≤ 1 || throw(ArgumentError("Recovery rate ($recovery) must be between 0 and 1"))
+		latency > 0 || throw(ArgumentError("Latency period ($latency) must be positive"))
+		0 ≤ immunity_loss ≤ 1 || throw(ArgumentError("Immunity loss rate ($immunity_loss) must be between 0 and 1"))
+		new(transmission, mortality, recovery, latency, immunity_loss)
+	end
 end
 
 """
-    Individual
+	Individual
 
 Represents a single individual in the population. New individuals can be constructed using the `Individual` constructor and specifying the number of strains and the age.
 These new individuals are initialized as susceptible to all strains, but can be modified to other states.
@@ -115,20 +115,20 @@ These new individuals are initialized as susceptible to all strains, but can be 
 - `age::Int`: Age of the individual
 """
 mutable struct Individual
-    state::BitMatrix
-    age::Int
+	state::BitMatrix
+	age::Int
 
-    function Individual(state::AbstractMatrix{Bool}, age::Int)
-        size(state, 2) == 4 || throw(ArgumentError("State matrix must have 4 columns for [S,E,I,R] (currently has $(size(state, 2)) columns)"))
-        age >= 0 || throw(ArgumentError("Age ($age) must be non-negative"))
+	function Individual(state::AbstractMatrix{Bool}, age::Int)
+		size(state, 2) == 4 || throw(ArgumentError("State matrix must have 4 columns for [S,E,I,R] (currently has $(size(state, 2)) columns)"))
+		age >= 0 || throw(ArgumentError("Age ($age) must be non-negative"))
 
-        # Validate that each strain is in exactly one state
-        for i in 1:size(state, 1)
-            sum(state[i, :]) == 1 || throw(ArgumentError("Each strain must be in exactly one state"))
-        end
+		# Validate that each strain is in exactly one state
+		for i in 1:size(state, 1)
+			sum(state[i, :]) == 1 || throw(ArgumentError("Each strain must be in exactly one state"))
+		end
 
-        new(BitMatrix(state), age)
-    end
+		new(BitMatrix(state), age)
+	end
 end
 
 # Constructors for creating new susceptible individuals
@@ -142,7 +142,7 @@ Base.copy(ind::Individual) = Individual(copy(ind.state), ind.age)
 Base.deepcopy(ind::Individual) = Individual(deepcopy(ind.state), ind.age)
 
 """
-    Population
+	Population
 
 Represents the entire population in the simulation.
 
@@ -150,23 +150,16 @@ Represents the entire population in the simulation.
 - `individuals::Vector{Individual}`: Collection of individuals
 """
 struct Population
-    individuals::Vector{Individual}
+	individuals::Vector{Individual}
 
-    function Population(individuals::Vector{Individual})
-        if !isempty(individuals)
-            n_strains = size(individuals[1], 1)
-            all(ind -> size(ind, 1) == n_strains, individuals) ||
-                throw(ArgumentError("All individuals must have the same number of strains"))
-        end
-        new(individuals)
-    end
-end
-
-# Constructor to convert legacy format
-function Population(matrices::Vector{<:AbstractMatrix{Bool}}, ages::Vector{Int})
-    length(matrices) == length(ages) ||
-        throw(ArgumentError("Number of matrices ($(length(matrices))) must match number of ages ($(length(ages)))"))
-    Population([Individual(m, a) for (m, a) in zip(matrices, ages)])
+	function Population(individuals::Vector{Individual})
+		if !isempty(individuals)
+			n_strains = size(individuals[1], 1)
+			all(ind -> size(ind, 1) == n_strains, individuals) ||
+				throw(ArgumentError("All individuals must have the same number of strains"))
+		end
+		new(individuals)
+	end
 end
 
 # Make population indexable and iterable
@@ -181,19 +174,19 @@ Base.deepcopy(pop::Population) = Population([deepcopy(ind) for ind in pop.indivi
 
 # Additional methods for population operations
 function n_strains(pop::Population)
-    isempty(pop) ? 0 : size(pop[1], 1)
+	isempty(pop) ? 0 : size(pop[1], 1)
 end
 
 function add_individual!(pop::Population, ind::Individual)
-    if !isempty(pop)
-        size(ind, 1) == n_strains(pop) ||
-            throw(ArgumentError("New individual must have the same number of strains"))
-    end
-    push!(pop.individuals, ind)
+	if !isempty(pop)
+		size(ind, 1) == n_strains(pop) ||
+			throw(ArgumentError("New individual must have the same number of strains"))
+	end
+	push!(pop.individuals, ind)
 end
 
 """
-    SimulationParameters
+	SimulationParameters
 
 Parameters for a coinfection simulation.
 
@@ -207,40 +200,40 @@ Parameters for a coinfection simulation.
 - `time_steps::Int`: Number of time steps to simulate
 """
 struct SimulationParameters
-    models::Vector{<:DiseaseModel}
-    interactions::Matrix{Float64}
-    base_mortality::Float64
-    fecundity::Float64
-    age_maturity::Int
-    introduction::Symbol
-    time_steps::Int
+	models::Vector{<:DiseaseModel}
+	interactions::Matrix{Float64}
+	base_mortality::Float64
+	fecundity::Float64
+	age_maturity::Int
+	introduction::Symbol
+	time_steps::Int
 
-    function SimulationParameters(
-        models::Vector{<:DiseaseModel},
-        interactions::Matrix{Float64},
-        base_mortality::Float64,
-        fecundity::Float64,
-        age_maturity::Int,
-        introduction::Symbol,
-        time_steps::Int
-    )
-        n_strains = length(models)
-        size(interactions) == (n_strains, n_strains) ||
-            throw(ArgumentError("Interaction matrix size must match number of disease models"))
+	function SimulationParameters(
+		models::Vector{<:DiseaseModel},
+		interactions::Matrix{Float64},
+		base_mortality::Float64,
+		fecundity::Float64,
+		age_maturity::Int,
+		introduction::Symbol,
+		time_steps::Int,
+	)
+		n_strains = length(models)
+		size(interactions) == (n_strains, n_strains) ||
+			throw(ArgumentError("Interaction matrix size must match number of disease models"))
 
-        0 ≤ base_mortality ≤ 1 || throw(ArgumentError("Base mortality ($base_mortality) must be between 0 and 1"))
-        fecundity ≥ 0 || throw(ArgumentError("Fecundity ($fecundity) must be non-negative"))
-        age_maturity > 0 || throw(ArgumentError("Age of maturity ($age_maturity) must be positive"))
-        introduction in (:simultaneous, :random, :none) ||
-            throw(ArgumentError("Introduction ($introduction) must be :simultaneous, :random, or :none"))
-        time_steps ≥ 1 || throw(ArgumentError("Time steps ($time_steps) must be positive"))
+		0 ≤ base_mortality ≤ 1 || throw(ArgumentError("Base mortality ($base_mortality) must be between 0 and 1"))
+		fecundity ≥ 0 || throw(ArgumentError("Fecundity ($fecundity) must be non-negative"))
+		age_maturity > 0 || throw(ArgumentError("Age of maturity ($age_maturity) must be positive"))
+		introduction in (:simultaneous, :random, :none) ||
+			throw(ArgumentError("Introduction ($introduction) must be :simultaneous, :random, or :none"))
+		time_steps ≥ 1 || throw(ArgumentError("Time steps ($time_steps) must be positive"))
 
-        new(models, interactions, base_mortality, fecundity, age_maturity, introduction, time_steps)
-    end
+		new(models, interactions, base_mortality, fecundity, age_maturity, introduction, time_steps)
+	end
 end
 
 """
-    SamplingParameters
+	SamplingParameters
 
 Parameters for virtual ecologist sampling.
 
@@ -250,18 +243,18 @@ Parameters for virtual ecologist sampling.
 - `false_negative_rate::Float64`: Probability of false negative detection
 """
 struct SamplingParameters
-    proportion_sampled::Float64
-    false_positive_rate::Float64
-    false_negative_rate::Float64
+	proportion_sampled::Float64
+	false_positive_rate::Float64
+	false_negative_rate::Float64
 
-    function SamplingParameters(
-        proportion_sampled::Float64,
-        false_positive_rate::Float64,
-        false_negative_rate::Float64
-    )
-        0 ≤ proportion_sampled ≤ 1 || throw(ArgumentError("Proportion sampled ($proportion_sampled) must be between 0 and 1"))
-        0 ≤ false_positive_rate ≤ 1 || throw(ArgumentError("False positive rate ($false_positive_rate) must be between 0 and 1"))
-        0 ≤ false_negative_rate ≤ 1 || throw(ArgumentError("False negative rate ($false_negative_rate) must be between 0 and 1"))
-        new(proportion_sampled, false_positive_rate, false_negative_rate)
-    end
+	function SamplingParameters(
+		proportion_sampled::Float64,
+		false_positive_rate::Float64,
+		false_negative_rate::Float64,
+	)
+		0 ≤ proportion_sampled ≤ 1 || throw(ArgumentError("Proportion sampled ($proportion_sampled) must be between 0 and 1"))
+		0 ≤ false_positive_rate ≤ 1 || throw(ArgumentError("False positive rate ($false_positive_rate) must be between 0 and 1"))
+		0 ≤ false_negative_rate ≤ 1 || throw(ArgumentError("False negative rate ($false_negative_rate) must be between 0 and 1"))
+		new(proportion_sampled, false_positive_rate, false_negative_rate)
+	end
 end
