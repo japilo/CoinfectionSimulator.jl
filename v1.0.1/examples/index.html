@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Examples · CoinfectionSimulator.jl</title><meta name="title" content="Examples · CoinfectionSimulator.jl"/><meta property="og:title" content="Examples · CoinfectionSimulator.jl"/><meta property="twitter:title" content="Examples · CoinfectionSimulator.jl"/><meta name="description" content="Documentation for CoinfectionSimulator.jl."/><meta property="og:description" content="Documentation for CoinfectionSimulator.jl."/><meta property="twitter:description" content="Documentation for CoinfectionSimulator.jl."/><meta property="og:url" content="https://japilo.github.io/CoinfectionSimulator.jl/examples/"/><meta property="twitter:url" content="https://japilo.github.io/CoinfectionSimulator.jl/examples/"/><link rel="canonical" href="https://japilo.github.io/CoinfectionSimulator.jl/examples/"/><script data-outdated-warner src="../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../search_index.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../">CoinfectionSimulator.jl</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../">Home</a></li><li><a class="tocitem" href="../api/">API Reference</a></li><li class="is-active"><a class="tocitem" href>Examples</a><ul class="internal"><li><a class="tocitem" href="#Basic-Example:-Two-Strain-Coinfection"><span>Basic Example: Two-Strain Coinfection</span></a></li><li><a class="tocitem" href="#Parameter-Exploration:-Batch-Simulations-and-Sensitivity-Analysis"><span>Parameter Exploration: Batch Simulations and Sensitivity Analysis</span></a></li><li><a class="tocitem" href="#Wildlife-Disease-Ecology:-Multiple-Infections-in-Animal-Populations"><span>Wildlife Disease Ecology: Multiple Infections in Animal Populations</span></a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>Examples</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Examples</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/japilo/CoinfectionSimulator.jl/blob/main/docs/src/examples.md#" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Examples"><a class="docs-heading-anchor" href="#Examples">Examples</a><a id="Examples-1"></a><a class="docs-heading-anchor-permalink" href="#Examples" title="Permalink"></a></h1><p>This section provides detailed examples based on the current example files in the CoinfectionSimulator.jl package.</p><h2 id="Basic-Example:-Two-Strain-Coinfection"><a class="docs-heading-anchor" href="#Basic-Example:-Two-Strain-Coinfection">Basic Example: Two-Strain Coinfection</a><a id="Basic-Example:-Two-Strain-Coinfection-1"></a><a class="docs-heading-anchor-permalink" href="#Basic-Example:-Two-Strain-Coinfection" title="Permalink"></a></h2><p>This example demonstrates the core functionality of CoinfectionSimulator.jl, showing how to set up and run a basic two-strain coinfection simulation with slight competition between the strains.</p><h3 id="Biological-Context"><a class="docs-heading-anchor" href="#Biological-Context">Biological Context</a><a id="Biological-Context-1"></a><a class="docs-heading-anchor-permalink" href="#Biological-Context" title="Permalink"></a></h3><p>This simulation models two co-circulating strains that compete for hosts. The competition could result from:</p><ul><li>Cross-reactive immune responses between related pathogens</li><li>Resource competition within infected hosts</li><li>Behavioral changes to the host that affect transmission patterns</li></ul><pre><code class="language-julia hljs">using CoinfectionSimulator
+using Random
+using Plots
+Random.seed!(42)
+
+# Define Disease Models
+# Strain 1: More aggressive pathogen
+# Higher transmission but also higher mortality
+strain1_model = SIRModel(
+    0.15,    # transmission rate: 15% chance per infected contact per time step
+    0.005,   # disease-induced mortality: 0.5% death rate for infected individuals
+    0.1,     # recovery rate: average infectious period = 1/0.1 = 10 time steps
+)
+
+# Strain 2: Milder but persistent pathogen
+# Lower transmission and mortality but longer infectious period
+strain2_model = SIRModel(
+    0.12,    # transmission rate: 12% per contact (slightly less transmissible)
+    0.003,   # disease-induced mortality: 0.3% death rate (less virulent)
+    0.08,    # recovery rate: average infectious period = 1/0.08 = 12.5 time steps
+)
+
+disease_models = [strain1_model, strain2_model]
+
+# Create Interaction Matrix
+# Symmetric competition where each strain reduces the other&#39;s transmission by 10%
+interactions = [1.0 0.9;   # Row 1: strain 2 reduces strain 1 transmission by 10%
+                0.9 1.0]   # Row 2: strain 1 reduces strain 2 transmission by 10%
+
+# Initialize Population
+n_individuals = 200
+population = Population(Individual[])
+
+# Create age-structured population
+for i in 1:n_individuals
+    age = rand(1:80)  # Random age 1-80 time steps
+    individual = Individual(2, age)  # 2 strains, starts susceptible to both
+    push!(population.individuals, individual)
+end
+
+# Seed initial infections to start the epidemic
+# Strain 1 introduction (index cases)
+for i in 1:5
+    population[i][1, 1] = false  # No longer susceptible to strain 1
+    population[i][1, 3] = true   # Now infected with strain 1
+end
+
+# Strain 2 introduction
+population[n_individuals][2, 1] = false  # No longer susceptible to strain 2
+population[n_individuals][2, 3] = true   # Now infected with strain 2
+
+# Set Simulation Parameters
+params = SimulationParameters(
+    disease_models,           # Our SIR models (one per strain)
+    interactions,            # Strain interactions
+    0.001,                   # Base mortality rate
+    0.02,                    # Fecundity (birth rate)
+    30,                      # Age of maturity
+    :none,                   # No additional introductions of strains
+    150,                     # Number of time steps
+    :frequency               # Transmission type (:frequency or :density)
+)
+
+# Run Simulation
+populations = simulate(population, params)
+
+# Analyze Results
+n_timesteps = length(populations)
+
+# Track disease states over time
+susceptible_1 = zeros(Int, n_timesteps)
+infected_1 = zeros(Int, n_timesteps)
+recovered_1 = zeros(Int, n_timesteps)
+
+susceptible_2 = zeros(Int, n_timesteps)
+infected_2 = zeros(Int, n_timesteps)
+recovered_2 = zeros(Int, n_timesteps)
+
+coinfected = zeros(Int, n_timesteps)
+total_pop = zeros(Int, n_timesteps)
+
+for t in 1:n_timesteps
+    pop = populations[t]
+    total_pop[t] = length(pop)
+
+    for i in 1:length(pop.individuals)
+        individual = pop.individuals[i]
+        # Strain 1 states
+        if individual[1, 1]
+            susceptible_1[t] += 1
+        end
+        if individual[1, 3]
+            infected_1[t] += 1
+        end
+        if individual[1, 4]
+            recovered_1[t] += 1
+        end
+
+        # Strain 2 states
+        if individual[2, 1]
+            susceptible_2[t] += 1
+        end
+        if individual[2, 3]
+            infected_2[t] += 1
+        end
+        if individual[2, 4]
+            recovered_2[t] += 1
+        end
+
+        # Coinfection (infected with both strains)
+        if individual[1, 3] &amp;&amp; individual[2, 3]
+            coinfected[t] += 1
+        end
+    end
+end
+
+# Virtual Ecologist Sampling
+sampling_params = SamplingParameters(
+    0.1,    # Sample 10% of population
+    0.05,   # 5% false positive rate
+    0.1,    # 10% false negative rate
+)
+
+detection_results = sample_populations(populations, sampling_params)</code></pre><h2 id="Parameter-Exploration:-Batch-Simulations-and-Sensitivity-Analysis"><a class="docs-heading-anchor" href="#Parameter-Exploration:-Batch-Simulations-and-Sensitivity-Analysis">Parameter Exploration: Batch Simulations and Sensitivity Analysis</a><a id="Parameter-Exploration:-Batch-Simulations-and-Sensitivity-Analysis-1"></a><a class="docs-heading-anchor-permalink" href="#Parameter-Exploration:-Batch-Simulations-and-Sensitivity-Analysis" title="Permalink"></a></h2><p>This example demonstrates how to explore parameter space systematically using CoinfectionSimulator.jl, including batch simulation runs with different parameters and sensitivity analysis for key parameters.</p><pre><code class="language-julia hljs">using CoinfectionSimulator
+using Random
+using DataFrames
+using Statistics
+Random.seed!(42)
+
+# Define Base Scenario
+base_sir = SIRModel(0.15, 0.005, 0.1)  # transmission, mortality, recovery
+base_models = [base_sir, base_sir]  # Two identical strains
+
+function create_base_population(n_individuals=100, seed_infections=3)
+    population = Population(Individual[])
+
+    for i in 1:n_individuals
+        age = rand(0:100)
+        individual = Individual(2, age)
+        push!(population.individuals, individual)
+    end
+
+    # Seed infections
+    for i in 1:seed_infections
+        population[i][1, 1] = false
+        population[i][1, 3] = true
+    end
+
+    return population
+end
+
+# Transmission Rate Sensitivity Analysis
+transmission_rates = 0.001:0.001:0.05  # Range from 0.1% probability to 5%
+transmission_results = DataFrame(
+    TransmissionRate=Float64[],
+    PeakInfections=Int[],
+    FinalRecovered=Int[],
+    AttackRate=Float64[],
+    EpidemicDuration=Int[]
+)
+
+for (i, rate) in enumerate(transmission_rates)
+    # Create models with varying transmission rate
+    model = SIRModel(rate, 0.005, 0.1)
+    models = [model, model]
+
+    # Neutral interactions
+    interactions = [1.0 1.0; 1.0 1.0]
+
+    params = SimulationParameters(
+        models, interactions, 0.001, 0.01, 18, :none, 100
+    )
+
+    population = create_base_population()
+    results = simulate(population, params)
+
+    # Analyze results
+    populations = results
+    infected_counts = [sum(ind[1, 3] for ind in pop.individuals) for pop in populations]
+    recovered_counts = [sum(ind[1, 4] for ind in pop.individuals) for pop in populations]
+
+    peak_infections = maximum(infected_counts)
+    final_recovered = recovered_counts[end]
+    attack_rate = final_recovered / 100.0 * 100  # percentage
+
+    # Find epidemic duration (time until &lt;1% infected)
+    epidemic_end = findfirst(infected_counts .&lt; 1)
+    epidemic_duration = epidemic_end === nothing ? 100 : epidemic_end
+
+    push!(transmission_results, (rate, peak_infections, final_recovered, attack_rate, epidemic_duration))
+end
+
+# Interaction Exploration
+interaction_strengths = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]
+cf_ratios = [0.1, 0.3, 0.5, 0.7, 0.9]  # Competition vs Facilitation ratios
+
+interaction_results = DataFrame(
+    InteractionStrength=Float64[],
+    CFRatio=Float64[],
+    Strain1Peak=Int[],
+    Strain2Peak=Int[],
+    Coinfections=Int[],
+    InteractionType=String[]
+)
+
+for strength in interaction_strengths
+    for cf_ratio in cf_ratios
+        # Create interaction matrix
+        if strength == 0.0
+            interactions = [1.0 1.0; 1.0 1.0]
+        else
+            interactions = create_interaction_matrix(2, false, strength, cf_ratio=cf_ratio)
+        end
+
+        models = [base_sir, base_sir]
+        params = SimulationParameters(models, interactions, 0.001, 0.01, 18, :none, 100)
+
+        # Create population with both strains present
+        population = create_base_population()
+        population.individuals[end][2, 1] = false  # Add strain 2 seed
+        population.individuals[end][2, 3] = true
+
+        results = simulate(population, params)
+        populations = results
+
+        # Count peaks and coinfections
+        strain1_counts = [sum(ind[1, 3] for ind in pop.individuals) for pop in populations]
+        strain2_counts = [sum(ind[2, 3] for ind in pop.individuals) for pop in populations]
+        coinfection_counts = [sum(ind[1, 3] &amp;&amp; ind[2, 3] for ind in pop.individuals) for pop in populations]
+
+        strain1_peak = maximum(strain1_counts)
+        strain2_peak = maximum(strain2_counts)
+        max_coinfections = maximum(coinfection_counts)
+
+        # Classify interaction type
+        interaction_type = if strength == 0.0
+            &quot;None&quot;
+        elseif cf_ratio &lt; 0.5
+            &quot;Competition&quot;
+        elseif cf_ratio &gt; 0.5
+            &quot;Facilitation&quot;
+        else
+            &quot;Mixed&quot;
+        end
+
+        push!(interaction_results, (strength, cf_ratio, strain1_peak, strain2_peak, max_coinfections, interaction_type))
+    end
+end</code></pre><h2 id="Wildlife-Disease-Ecology:-Multiple-Infections-in-Animal-Populations"><a class="docs-heading-anchor" href="#Wildlife-Disease-Ecology:-Multiple-Infections-in-Animal-Populations">Wildlife Disease Ecology: Multiple Infections in Animal Populations</a><a id="Wildlife-Disease-Ecology:-Multiple-Infections-in-Animal-Populations-1"></a><a class="docs-heading-anchor-permalink" href="#Wildlife-Disease-Ecology:-Multiple-Infections-in-Animal-Populations" title="Permalink"></a></h2><p>This example demonstrates CoinfectionSimulator.jl for wildlife disease ecology research with directly transmitted parasites and pathogens.</p><pre><code class="language-julia hljs">using CoinfectionSimulator
+using Random
+using DataFrames
+using Statistics
+Random.seed!(2025)
+
+# Define Parasite Models for Wildlife Host
+# Strain 1: Acute viral infection
+acute_virus = SIRModel(
+    0.08,    # Transmission rate per contact per month
+    0.012,   # Disease-induced mortality
+    0.25     # Recovery rate (4 month average infectious period)
+)
+
+# Strain 2: Chronic bacterial infection
+chronic_bacteria = SIModel(
+    0.05,    # Lower transmission rate
+    0.008    # Lower mortality but persistent
+)
+
+# Strain 3: Parasitic worm with prepatent period
+intestinal_parasite = SEIRModel(
+    0.06,    # Moderate transmission
+    0.005,   # Low mortality
+    0.15,    # Recovery/clearance rate
+    6        # Prepatent period (6 months before infectious)
+)
+
+# Strain 4: Ectoparasite
+ectoparasite = SEIRSModel(
+    0.10,    # High transmission
+    0.003,   # Very low mortality
+    0.20,    # Recovery rate
+    2,       # Short latency
+    0.08     # Loss of immunity/resistance
+)
+
+disease_models = [acute_virus, chronic_bacteria, intestinal_parasite, ectoparasite]
+
+# Define Strain Interactions Based on Biological Mechanisms
+interactions = [
+    1.0 0.7 1.2 0.9;    # Acute virus: competes with bacteria, facilitates internal parasite
+    1.3 1.0 1.1 1.0;    # Chronic bacteria: facilitates others (immunosuppression)
+    0.8 0.9 1.0 1.1;    # Intestinal parasite: some competition, slight facilitation of ectoparasite
+    1.1 1.0 0.9 1.0     # Ectoparasite: facilitates virus, competes with intestinal parasite
+]
+
+# Initialize Wildlife Population
+function create_wildlife_population(n_animals=300)
+    population = Population(Individual[])
+
+    # Age structure typical of wildlife populations
+    for i in 1:n_animals
+        # Age in time steps (represents months)
+        age = if rand() &lt; 0.45
+            rand(0:6)       # 45% juveniles (0-6 months)
+        elseif rand() &lt; 0.35
+            rand(7:18)      # 35% young adults (7-18 months)
+        elseif rand() &lt; 0.15
+            rand(19:36)     # 15% mature adults (19-36 months)
+        else
+            rand(37:60)     # 5% old animals (3-5 years)
+        end
+
+        individual = Individual(4, age)  # 4 strains
+        push!(population.individuals, individual)
+    end
+
+    return population
+end
+
+wildlife_population = create_wildlife_population(300)
+
+# Introduce infections
+# Chronic bacteria most common
+chronic_initial = 8
+for i in 1:chronic_initial
+    wildlife_population.individuals[i].state[2, 1] = false
+    wildlife_population.individuals[i].state[2, 3] = true
+end
+
+# Acute virus (recent outbreak)
+virus_initial = 3
+for i in (chronic_initial+1):(chronic_initial+virus_initial)
+    wildlife_population.individuals[i].state[1, 1] = false
+    wildlife_population.individuals[i].state[1, 3] = true
+end
+
+# Run Multi-Season Simulation
+params = SimulationParameters(
+    disease_models,
+    interactions,
+    0.008,   # Base mortality (predation, accidents, etc.)
+    0.05,    # Fecundity (birth rate)
+    6,       # Reproductive maturity at 6 months
+    :random, # Random introductions (migration, spillover events)
+    24       # 2 years of monthly time steps
+)
+
+populations = simulate(wildlife_population, params)
+
+# Wildlife Sampling Simulation
+sampling_strategies = [
+    (&quot;Capture-Mark-Recapture&quot;, 0.15, 0.02, 0.08),  # 15% sampled, low errors
+    (&quot;Hunter Harvest&quot;, 0.08, 0.05, 0.12),          # 8% sampled, moderate errors
+    (&quot;Mortality Surveillance&quot;, 0.03, 0.10, 0.20)    # 3% sampled, high errors
+]
+
+surveillance_results = DataFrame(
+    Strategy=String[],
+    Strain=String[],
+    TruePositiveMonths=Int[],
+    DetectedMonths=Int[],
+    SensitivityPercent=Float64[]
+)
+
+strain_names = [&quot;Acute Virus&quot;, &quot;Chronic Bacteria&quot;, &quot;Intestinal Parasite&quot;, &quot;Ectoparasite&quot;]
+
+for (strategy_name, prop_sampled, fp_rate, fn_rate) in sampling_strategies
+    sampling_params = SamplingParameters(prop_sampled, fp_rate, fn_rate)
+    detection_matrix = sample_populations(populations, sampling_params)
+
+    for strain in 1:4
+        # Calculate detection metrics
+        infected_counts = [sum(ind[strain, 3] for ind in pop.individuals) for pop in populations]
+        total_animals = [length(pop) for pop in populations]
+        true_positive_months = sum((infected_counts ./ total_animals) .&gt; 0)
+        detected_months = sum(detection_matrix[:, strain])
+        sensitivity = detected_months / max(1, true_positive_months) * 100
+
+        push!(surveillance_results, (strategy_name, strain_names[strain],
+            true_positive_months, detected_months, sensitivity))
+    end
+end</code></pre><p>These examples demonstrate the key functionality of CoinfectionSimulator.jl for modeling complex multi-strain disease dynamics in various ecological contexts.</p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../api/">« API Reference</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.13.0 on <span class="colophon-date" title="Wednesday 27 August 2025 14:49">Wednesday 27 August 2025</span>. Using Julia version 1.10.10.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
