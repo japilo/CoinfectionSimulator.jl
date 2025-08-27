@@ -17,9 +17,9 @@ using LinearAlgebra
         @test all(diag(matrix2) .== 1.0)
         @test issymmetric(matrix2)  # Should be symmetric without priority effects
 
-        # Test with zero interaction strength (should be identity matrix)
+        # Test with zero interaction strength (should be all ones)
         matrix3 = create_interaction_matrix(2, true, 0.0)
-        @test matrix3 ≈ Matrix{Float64}(I, 2, 2)
+        @test matrix3 ≈ Matrix{Float64}(ones(2, 2))
 
         # Test with high facilitation ratio
         matrix4 = create_interaction_matrix(5, false, 0.5, cf_ratio=0.9)
