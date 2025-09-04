@@ -594,8 +594,10 @@
         edge_pop = Population([Individual(2, 20) for _ in 1:20])
 
         # Seed infections
-        edge_pop[1][1, 1] = false; edge_pop[1][1, 3] = true
-        edge_pop[2][2, 1] = false; edge_pop[2][2, 3] = true
+        edge_pop[1][1, 1] = false
+        edge_pop[1][1, 3] = true
+        edge_pop[2][2, 1] = false
+        edge_pop[2][2, 3] = true
 
         # Test with extreme facilitation
         extreme_facilitation = [1.0 5.0; 5.0 1.0]  # Very strong facilitation
@@ -610,8 +612,10 @@
         # Test with extreme competition
         Random.seed!(888)  # Same seed for comparison
         edge_pop2 = Population([Individual(2, 20) for _ in 1:20])
-        edge_pop2[1][1, 1] = false; edge_pop2[1][1, 3] = true
-        edge_pop2[2][2, 1] = false; edge_pop2[2][2, 3] = true
+        edge_pop2[1][1, 1] = false
+        edge_pop2[1][1, 3] = true
+        edge_pop2[2][2, 1] = false
+        edge_pop2[2][2, 3] = true
 
         extreme_competition = [1.0 0.1; 0.1 1.0]   # Very strong competition
         params_competition = SimulationParameters(
@@ -944,10 +948,10 @@
 
         # Complex interaction matrix
         complex_interactions = [
-            1.0  0.8  1.2  0.9;
-            1.1  1.0  0.7  1.3;
-            0.9  1.2  1.0  1.1;
-            1.4  0.8  1.1  1.0
+            1.0 0.8 1.2 0.9;
+            1.1 1.0 0.7 1.3;
+            0.9 1.2 1.0 1.1;
+            1.4 0.8 1.1 1.0
         ]
 
         complex_params = SimulationParameters(
@@ -985,6 +989,87 @@
             # At least some individuals should be older than initial range
             @test any(age -> age > 50, ages) || any(age -> age < 18, ages)  # Either aging or new births
         end
+    end
+
+    @testset "Strain Persistence in SI Models with No Mortality" begin
+        # Test that all strains present at start remain present at end
+        # when using SI models with no mortality (base or disease-induced)
+        Random.seed!(2024)
+
+        # Create population with individuals infected with different strains
+        pop = Population(Individual[])
+
+        # Add individuals infected with strain 1 only
+        for _ in 1:10
+            push!(pop.individuals, Individual(BitMatrix([false false true false; true false false false; true false false false]), 25))
+        end
+
+        # Add individuals infected with strain 2 only
+        for _ in 1:8
+            push!(pop.individuals, Individual(BitMatrix([true false false false; false false true false; true false false false]), 30))
+        end
+
+        # Add individuals infected with strain 3 only
+        for _ in 1:5
+            push!(pop.individuals, Individual(BitMatrix([true false false false; true false false false; false false true false]), 20))
+        end
+
+        # Add some susceptible individuals
+        for _ in 1:20
+            push!(pop.individuals, Individual(BitMatrix([true false false false; true false false false; true false false false]), 22))
+        end
+
+        # Count initial strains present (strains with at least one infected individual)
+        initial_strains_present = Set{Int}()
+        for strain in 1:3
+            if count(ind -> ind[strain, 3], pop.individuals) > 0
+                push!(initial_strains_present, strain)
+            end
+        end
+
+        # Should have all 3 strains initially present
+        @test length(initial_strains_present) == 3
+        @test initial_strains_present == Set([1, 2, 3])
+
+        # Create SI models with no mortality
+        si_models = [SIModel(0.05, 0.0), SIModel(0.05, 0.0), SIModel(0.05, 0.0)]
+
+        # No interactions for simplicity
+        interactions = [1.0 0.0 0.0; 0.0 1.0 0.0; 0.0 0.0 1.0]
+
+        params = SimulationParameters(
+            si_models,
+            interactions,
+            0.0,    # No base mortality
+            0.0,    # No reproduction to keep things simple
+            18,     # Age of maturity
+            :none,  # No new strain introductions
+            50      # Run for 50 time steps
+        )
+
+        results = simulate(pop, params)
+        final_pop = results[end]
+
+        # Count final strains present
+        final_strains_present = Set{Int}()
+        for strain in 1:3
+            if count(ind -> ind[strain, 3], final_pop) > 0
+                push!(final_strains_present, strain)
+            end
+        end
+
+        # All initially present strains should still be present
+        @test initial_strains_present ⊆ final_strains_present
+        @test length(final_strains_present) >= length(initial_strains_present)
+
+        # More specific: each strain that was present initially should still be present
+        for strain in initial_strains_present
+            final_count = count(ind -> ind[strain, 3], final_pop)
+            @test final_count > 0
+        end
+
+        # Additional check: total population should not decrease (no mortality)
+        @test length(final_pop) == length(pop.individuals)
     end
 
 end
