@@ -4,7 +4,7 @@ Utilities for preparing simulation data and interaction matrices.
 
 using Random
 using Distributions
-using DataFrames
+using Tables
 using StatsBase: sample
 
 """
@@ -88,15 +88,16 @@ function create_interaction_matrix(
 end
 
 """
-create_interaction_matrix(df::DataFrame) -> Vector{Matrix{Float64}}
+create_interaction_matrix(table) -> Vector{Matrix{Float64}}
 
-Generates interaction matrices for coinfection simulations based on DataFrame
-parameters. Interactions are sampled from a uniform distribution, whose bounds are
+Generates interaction matrices for coinfection simulations based on the parameters in a
+table. Interactions are sampled from a uniform distribution, whose bounds are
 defined by the ratio of competition to facilitation in the pathogen community, and the
 interaction strength.
 
 # Arguments
-- `df::DataFrame`: DataFrame containing the following required columns:
+- `table`: Any Tables.jl-compatible table, such as a `NamedTuple` of vectors or a
+  `DataFrame`, containing the following required columns:
 - `:interaction_strength` (`Float64`): Defines the outer bounds of the interaction
   multipliers. For example, an interaction strength of 0.1 means that the interaction
   multipliers will be sampled from a uniform distribution between 0.9 and 1.1. Interaction
@@ -112,15 +113,13 @@ interaction strength.
   matrix dimensions).
 
 # Returns
-- `Vector{Matrix{Float64}}`: Vector of interaction matrices, one per DataFrame row.
+- `Vector{Matrix{Float64}}`: Vector of interaction matrices, one per table row.
   Each matrix is `strains × strains` with diagonal elements = 1.0.
 
 # Examples
 ```julia
-using DataFrames
-
-# Create parameter DataFrame
-df = DataFrame(
+# Create parameter table
+table = (
 interaction_strength = [0.1, 0.2],
 cf_ratio = [0.3, 0.7],
 priority_effects = [true, false],
@@ -128,25 +127,32 @@ strains = [3, 4]
 )
 
 # Generate interaction matrices
-matrices = create_interaction_matrix(df)
+matrices = create_interaction_matrix(table)
 ```
 """
-function create_interaction_matrix(df::DataFrame)
+function create_interaction_matrix(table)
+    columns = Tables.columntable(table)
+
     # Validate required columns
     required_columns = [:interaction_strength, :cf_ratio, :priority_effects, :strains]
     for col in required_columns
-        if !hasproperty(df, col)
-            throw(ArgumentError("DataFrame must contain column: $col"))
+        if !hasproperty(columns, col)
+            throw(ArgumentError("Table must contain column: $col"))
         end
     end
 
     # Create matrices for each row
-    matrices = map(eachrow(df)) do row
+    matrices = map(
+        columns.strains,
+        columns.priority_effects,
+        columns.interaction_strength,
+        columns.cf_ratio,
+    ) do strains, priority_effects, interaction_strength, cf_ratio
         create_interaction_matrix(
-            row.strains,
-            row.priority_effects,
-            row.interaction_strength;
-            cf_ratio=row.cf_ratio,
+            strains,
+            priority_effects,
+            interaction_strength;
+            cf_ratio=cf_ratio,
         )
     end
 

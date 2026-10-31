@@ -128,7 +128,7 @@ Simulates ecological sampling with imperfect detection.
 Generates interaction matrices for simulation experiments.
 
 **Parameters:**
-- `df`: DataFrame with columns for `interaction_strength`, `cf_ratio`, `priority_effects`, `strains`
+- `table`: Any Tables.jl-compatible table (a `NamedTuple` of vectors, a `DataFrame`, ...) with columns for `interaction_strength`, `cf_ratio`, `priority_effects`, `strains`
 OR
 - `strains`: Number of strains
 - `priority_effects`: Whether to use asymmetric interactions
