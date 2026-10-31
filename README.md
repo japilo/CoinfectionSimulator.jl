@@ -63,7 +63,7 @@ n_strains = 2
 models = [SIModel(0.3, 0.02), SIModel(0.4, 0.02)]
 
 # Create initial population
-pop = Population([Individual(BitMatrix([true false true false]), 20) for _ in 1:100])
+population = Population([Individual(n_strains, 20) for _ in 1:n_individuals])
 
 # Set up simulation parameters
 params = SimulationParameters(
@@ -78,7 +78,7 @@ params = SimulationParameters(
 )
 
 # Run simulation
-populations, age_vectors = simulate(population, params)
+populations = simulate(population, params)
 
 # Sample with virtual ecologist
 sampling_params = SamplingParameters(0.3, 0.05, 0.1)
@@ -127,7 +127,7 @@ Simulates ecological sampling with imperfect detection.
 Generates interaction matrices for simulation experiments.
 
 **Parameters:**
-- `df`: DataFrame with columns for `interaction_strength`, `cf_ratio`, `priority_effects`, `strains`
+- `table`: Any Tables.jl-compatible table (a `NamedTuple` of vectors, a `DataFrame`, ...) with columns for `interaction_strength`, `cf_ratio`, `priority_effects`, `strains`
 OR
 - `strains`: Number of strains
 - `priority_effects`: Whether to use asymmetric interactions

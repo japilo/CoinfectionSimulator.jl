@@ -67,4 +67,27 @@ using LinearAlgebra
 
         @test_throws ArgumentError create_interaction_matrix(df_missing)
     end
+
+    @testset "Table Interface" begin
+        # Any Tables.jl-compatible table works, not only a DataFrame
+        table = (
+            interaction_strength=[0.1, 0.2],
+            cf_ratio=[0.3, 0.5],
+            priority_effects=[true, false],
+            strains=[2, 3]
+        )
+
+        @test size.(create_interaction_matrix(table)) == [(2, 2), (3, 3)]
+
+        # A vector of rows is also a table
+        rows = [
+            (interaction_strength=0.1, cf_ratio=0.3, priority_effects=true, strains=2),
+            (interaction_strength=0.2, cf_ratio=0.5, priority_effects=false, strains=3),
+        ]
+
+        @test size.(create_interaction_matrix(rows)) == [(2, 2), (3, 3)]
+
+        # Test with missing columns
+        @test_throws ArgumentError create_interaction_matrix((strains=[2], cf_ratio=[0.3]))
+    end
 end

@@ -120,7 +120,7 @@ See `examples/basic_example.jl` for a complete working example demonstrating:
 
 ## Dependencies
 
-- **DataFrames.jl**: Data manipulation
+- **Tables.jl**: Table inputs for `create_interaction_matrix`
 - **Distributions.jl**: Statistical distributions
 - **StatsBase.jl**: Statistical functions and sampling
 - **LinearAlgebra.jl**: Matrix operations

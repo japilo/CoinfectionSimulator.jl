@@ -7,7 +7,7 @@ using LinearAlgebra
 # External dependencies
 using Distributions
 using StatsBase
-using DataFrames
+using Tables
 
 # Type definitions
 include("types.jl")
